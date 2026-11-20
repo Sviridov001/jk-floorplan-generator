@@ -1,0 +1,1777 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Генератор планировок этажа ЖК — Секция 14 м (С1 / С5)</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <style>
+    :root {
+      --bg-app: #f4f5f7;
+      --bg-panel: #ffffff;
+      --border: #e2e8f0;
+      --ink: #0f172a;
+      --muted: #64748b;
+      --accent: #2563eb;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-app);
+      color: var(--ink);
+      -webkit-font-smoothing: antialiased;
+    }
+    /* Custom range sliders */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      background: #e2e8f0;
+      border-radius: 999px;
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #2563eb;
+      cursor: pointer;
+      border: 2px solid #ffffff;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25);
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #2563eb;
+      cursor: pointer;
+      border: 2px solid #ffffff;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25);
+    }
+    /* Blueprint grid background */
+    .cad-canvas-bg {
+      background-color: #ffffff;
+      background-image:
+        linear-gradient(to right, rgba(148, 163, 184, 0.12) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(148, 163, 184, 0.12) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+    .apt-group {
+      cursor: pointer;
+      transition: opacity 0.15s ease;
+    }
+    .apt-group:hover .apt-hover-overlay {
+      fill-opacity: 0.14;
+    }
+    .apt-selected .apt-selection-ring {
+      stroke: #2563eb;
+      stroke-width: 3;
+      stroke-dasharray: none;
+    }
+    /* Compact scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    @media print {
+      header, aside, .no-print { display: none !important; }
+      main { display: block !important; height: auto !important; overflow: visible !important; }
+      #svgContainer { height: auto !important; border: none !important; }
+      #explicationSection { break-before: page; }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Top Header -->
+  <header class="bg-white border-b border-slate-200 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-30">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-lg bg-slate-900 text-white flex items-center justify-center shrink-0">
+        <i data-lucide="layout-grid" class="w-5 h-5"></i>
+      </div>
+      <div>
+        <h1 class="text-sm sm:text-base font-bold text-slate-900 leading-tight">Генератор планировок ЖК · Секция 14 м</h1>
+        <p class="text-xs text-slate-500">Глубина корпуса 6,1 + 1,8 + 6,1 м · Монолитный каркас + газобетон D500</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2 flex-wrap">
+      <button id="btnGenerate" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs sm:text-sm font-semibold shadow-sm transition">
+        <i data-lucide="sparkles" class="w-4 h-4"></i>
+        Сгенерировать варианты
+      </button>
+      <button id="btnExportSvg" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium transition" title="Скачать векторный план SVG">
+        <i data-lucide="download" class="w-3.5 h-3.5"></i>
+        SVG
+      </button>
+      <button id="btnExportCsv" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium transition" title="Скачать экспликацию в CSV для Excel">
+        <i data-lucide="table" class="w-3.5 h-3.5"></i>
+        CSV
+      </button>
+      <button id="btnPrint" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium transition" title="Печать или сохранение в PDF">
+        <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+        Печать
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <div class="flex-1 flex flex-col lg:flex-row min-h-0">
+
+    <!-- Left Controls Sidebar -->
+    <aside class="w-full lg:w-80 xl:w-88 bg-white border-b lg:border-b-0 lg:border-r border-slate-200 p-4 flex flex-col gap-5 lg:overflow-y-auto shrink-0">
+
+      <!-- Presets -->
+      <section>
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500">Базовый шаблон</h2>
+        </div>
+        <div class="grid grid-cols-3 gap-1.5">
+          <button data-preset="C1" class="preset-btn px-2.5 py-2 rounded-lg border text-xs font-semibold text-center transition">
+            Секция С1
+            <span class="block text-[10px] font-normal opacity-75">22,8 × 14 м</span>
+          </button>
+          <button data-preset="C5" class="preset-btn px-2.5 py-2 rounded-lg border text-xs font-semibold text-center transition">
+            Секция С5
+            <span class="block text-[10px] font-normal opacity-75">41,6 × 14 м</span>
+          </button>
+          <button data-preset="CUSTOM" class="preset-btn px-2.5 py-2 rounded-lg border text-xs font-semibold text-center transition">
+            Своя
+            <span class="block text-[10px] font-normal opacity-75">Настройка</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Geometry -->
+      <section class="space-y-3.5 border-t border-slate-100 pt-4">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500">Габариты и конструктив</h2>
+
+        <div>
+          <div class="flex justify-between text-xs mb-1">
+            <span class="font-medium text-slate-700">Длина секции</span>
+            <span id="valLength" class="font-bold text-slate-900 tabular-nums">41,6 м (13 шагов)</span>
+          </div>
+          <input id="inputLength" type="range" min="19.2" max="51.2" step="3.2" value="41.6" />
+          <div class="flex justify-between text-[10px] text-slate-400 mt-0.5">
+            <span>19,2 м</span>
+            <span>32,0 м</span>
+            <span>51,2 м</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label for="selectCorePos" class="block text-xs font-medium text-slate-700 mb-1">Положение ЛЛУ</label>
+            <select id="selectCorePos" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="center">По центру</option>
+              <option value="left">Смещён влево</option>
+              <option value="right">Смещён вправо</option>
+            </select>
+          </div>
+          <div>
+            <label for="selectCoreSide" class="block text-xs font-medium text-slate-700 mb-1">Сторона ЛЛУ</label>
+            <select id="selectCoreSide" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="bottom">Ось А–Б (низ)</option>
+              <option value="top">Ось В–Г (верх)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between pt-1">
+          <label for="toggleBalconies" class="text-xs font-medium text-slate-700 cursor-pointer">
+            Балконы (коэф. 0,3)
+            <span class="block text-[10px] text-slate-400 font-normal">Как в С1 (1,66 м² → 0,50 м²)</span>
+          </label>
+          <input id="toggleBalconies" type="checkbox" class="w-4 h-4 accent-blue-600 rounded cursor-pointer" />
+        </div>
+      </section>
+
+      <!-- Target Unit Mix -->
+      <section class="space-y-3 border-t border-slate-100 pt-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500">Целевая квартирография</h2>
+          <span id="mixSumBadge" class="text-[11px] font-semibold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700">100%</span>
+        </div>
+
+        <div class="space-y-2.5">
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="flex items-center gap-1.5 font-medium text-slate-700">
+                <span class="w-2.5 h-2.5 rounded-sm bg-sky-400 inline-block"></span> 1К (31–42 м²)
+              </span>
+              <span id="valMix1" class="font-bold tabular-nums text-slate-900">55%</span>
+            </div>
+            <input id="inputMix1" type="range" min="0" max="100" step="5" value="55" />
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="flex items-center gap-1.5 font-medium text-slate-700">
+                <span class="w-2.5 h-2.5 rounded-sm bg-amber-400 inline-block"></span> 2К (46–64 м²)
+              </span>
+              <span id="valMix2" class="font-bold tabular-nums text-slate-900">30%</span>
+            </div>
+            <input id="inputMix2" type="range" min="0" max="100" step="5" value="30" />
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="flex items-center gap-1.5 font-medium text-slate-700">
+                <span class="w-2.5 h-2.5 rounded-sm bg-emerald-400 inline-block"></span> 3К (68–86 м²)
+              </span>
+              <span id="valMix3" class="font-bold tabular-nums text-slate-900">15%</span>
+            </div>
+            <input id="inputMix3" type="range" min="0" max="100" step="5" value="15" />
+          </div>
+        </div>
+
+        <div class="flex gap-1.5 pt-1">
+          <button data-mix="invest" class="mix-quick-btn flex-1 py-1.5 px-2 rounded-md bg-slate-100 hover:bg-slate-200 text-[11px] font-medium text-slate-700 transition">Инвест</button>
+          <button data-mix="balanced" class="mix-quick-btn flex-1 py-1.5 px-2 rounded-md bg-slate-100 hover:bg-slate-200 text-[11px] font-medium text-slate-700 transition">Баланс</button>
+          <button data-mix="family" class="mix-quick-btn flex-1 py-1.5 px-2 rounded-md bg-slate-100 hover:bg-slate-200 text-[11px] font-medium text-slate-700 transition">Семейный</button>
+        </div>
+      </section>
+
+      <!-- Display Layers -->
+      <section class="space-y-2.5 border-t border-slate-100 pt-4">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500">Слои и стиль чертежа</h2>
+        <div class="grid grid-cols-2 gap-1.5 mb-2">
+          <button data-style="zoning" class="style-btn py-1.5 px-2 rounded-lg border text-xs font-medium transition">Зонирование</button>
+          <button data-style="cad" class="style-btn py-1.5 px-2 rounded-lg border text-xs font-medium transition">Чертёж CAD</button>
+        </div>
+        <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
+          <input id="layerAxes" type="checkbox" checked class="w-3.5 h-3.5 accent-blue-600 rounded" />
+          Оси, размеры и пилоны
+        </label>
+        <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
+          <input id="layerFurniture" type="checkbox" checked class="w-3.5 h-3.5 accent-blue-600 rounded" />
+          Мебель и сантехника
+        </label>
+        <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
+          <input id="layerLabels" type="checkbox" checked class="w-3.5 h-3.5 accent-blue-600 rounded" />
+          Номера и площади комнат
+        </label>
+        <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
+          <input id="layerStamps" type="checkbox" checked class="w-3.5 h-3.5 accent-blue-600 rounded" />
+          Марки квартир (как в ГОСТ/СП)
+        </label>
+      </section>
+
+      <!-- Selected Apartment Inspector -->
+      <section id="inspectorBox" class="border-t border-slate-100 pt-4 hidden">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-blue-600">Выбранная квартира</h2>
+          <button id="btnCloseInspector" class="text-slate-400 hover:text-slate-600">
+            <i data-lucide="x" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+        <div id="inspectorContent" class="bg-blue-50/60 border border-blue-100 rounded-lg p-3 text-xs space-y-2"></div>
+      </section>
+
+    </aside>
+
+    <!-- Main Right Area -->
+    <main class="flex-1 flex flex-col min-w-0 p-4 gap-4 lg:overflow-y-auto">
+
+      <!-- Variant Selector Strip -->
+      <div class="flex items-center justify-between gap-3 flex-wrap no-print">
+        <div id="variantTabs" class="flex items-center gap-1.5 flex-wrap"></div>
+        <div class="text-xs text-slate-500 flex items-center gap-2">
+          <span>Клик по квартире на плане — детали и замена</span>
+        </div>
+      </div>
+
+      <!-- KPI Summary Bar -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2.5">
+        <div class="bg-white border border-slate-200 rounded-xl p-3">
+          <div class="text-[11px] text-slate-500 font-medium">Площадь этажа по СП</div>
+          <div id="kpiFloorArea" class="text-lg font-bold text-slate-900 tabular-nums mt-0.5">—</div>
+          <div id="kpiDimensions" class="text-[10px] text-slate-400 mt-0.5">—</div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-xl p-3">
+          <div class="text-[11px] text-slate-500 font-medium">Продаваемая (с коэф.)</div>
+          <div id="kpiSellableArea" class="text-lg font-bold text-blue-700 tabular-nums mt-0.5">—</div>
+          <div id="kpiLivingArea" class="text-[10px] text-slate-400 mt-0.5">Жилая: —</div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-xl p-3">
+          <div class="text-[11px] text-slate-500 font-medium">Площадь МОП</div>
+          <div id="kpiMopArea" class="text-lg font-bold text-slate-900 tabular-nums mt-0.5">—</div>
+          <div id="kpiMopShare" class="text-[10px] text-slate-400 mt-0.5">—</div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-xl p-3">
+          <div class="text-[11px] text-slate-500 font-medium">КЭП (выход полезной)</div>
+          <div id="kpiEfficiency" class="text-lg font-bold text-emerald-700 tabular-nums mt-0.5">—</div>
+          <div class="text-[10px] text-slate-400 mt-0.5">Цель девелопера ≥ 78%</div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-xl p-3 col-span-2 sm:col-span-1">
+          <div class="text-[11px] text-slate-500 font-medium">Квартир на этаже</div>
+          <div id="kpiUnitCount" class="text-lg font-bold text-slate-900 tabular-nums mt-0.5">—</div>
+          <div id="kpiUnitBreakdown" class="text-[10px] text-slate-500 font-medium mt-0.5">—</div>
+        </div>
+      </div>
+
+      <!-- Interactive Plan Canvas -->
+      <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
+        <div class="px-3.5 py-2 border-b border-slate-100 flex items-center justify-between gap-2 bg-slate-50/70 no-print">
+          <div class="flex items-center gap-3 text-xs">
+            <span class="font-semibold text-slate-800" id="planTitle">План типового этажа</span>
+            <span class="hidden sm:inline-flex items-center gap-2.5 text-[11px] text-slate-500">
+              <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-sky-200 border border-sky-400"></span>1К</span>
+              <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-amber-200 border border-amber-400"></span>2К</span>
+              <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-emerald-200 border border-emerald-400"></span>3К</span>
+              <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-slate-200 border border-slate-400"></span>МОП / ЛЛУ</span>
+            </span>
+          </div>
+          <div class="flex items-center gap-1">
+            <button id="btnZoomOut" class="p-1.5 rounded hover:bg-slate-200 text-slate-600 transition" title="Уменьшить">
+              <i data-lucide="zoom-out" class="w-4 h-4"></i>
+            </button>
+            <span id="zoomLabel" class="text-[11px] font-mono text-slate-600 w-10 text-center">100%</span>
+            <button id="btnZoomIn" class="p-1.5 rounded hover:bg-slate-200 text-slate-600 transition" title="Увеличить">
+              <i data-lucide="zoom-in" class="w-4 h-4"></i>
+            </button>
+            <button id="btnZoomReset" class="p-1.5 rounded hover:bg-slate-200 text-slate-600 transition" title="Сбросить масштаб">
+              <i data-lucide="maximize-2" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+
+        <div id="svgContainer" class="cad-canvas-bg relative w-full overflow-auto" style="min-height: 360px; max-height: 520px;">
+          <div id="svgInner" class="inline-block min-w-full p-4 transition-transform origin-top-left"></div>
+        </div>
+      </div>
+
+      <!-- Bottom Tabs: Explication & Variants Comparison -->
+      <div id="explicationSection" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div class="border-b border-slate-200 px-4 flex items-center justify-between gap-2 bg-slate-50/70">
+          <div class="flex items-center gap-1">
+            <button data-tab="explication" class="bottom-tab px-3.5 py-2.5 text-xs font-semibold border-b-2 transition">
+              Экспликация помещений
+            </button>
+            <button data-tab="comparison" class="bottom-tab px-3.5 py-2.5 text-xs font-semibold border-b-2 transition">
+              Сравнение вариантов (ТЭП)
+            </button>
+          </div>
+          <div class="flex items-center gap-2 py-1.5 no-print">
+            <select id="filterAptType" class="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 focus:outline-none">
+              <option value="ALL">Все помещения</option>
+              <option value="1К">Только 1К</option>
+              <option value="2К">Только 2К</option>
+              <option value="3К">Только 3К</option>
+              <option value="МОП">Только МОП</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Explication Table -->
+        <div id="panelExplication" class="overflow-x-auto max-h-96 overflow-y-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead class="bg-slate-50 sticky top-0 z-10 border-b border-slate-200 text-slate-600">
+              <tr>
+                <th class="py-2 px-3 font-semibold w-20">№ пом.</th>
+                <th class="py-2 px-3 font-semibold">Наименование</th>
+                <th class="py-2 px-3 font-semibold w-28">Тип / Квартира</th>
+                <th class="py-2 px-3 font-semibold text-right w-32">Площадь с коэф., м²</th>
+                <th class="py-2 px-3 font-semibold text-right w-28">Площадь, м²</th>
+              </tr>
+            </thead>
+            <tbody id="explicationBody" class="divide-y divide-slate-100"></tbody>
+            <tfoot id="explicationFoot" class="bg-slate-50 border-t-2 border-slate-200 font-bold text-slate-900 sticky bottom-0"></tfoot>
+          </table>
+        </div>
+
+        <!-- Variants Comparison Table -->
+        <div id="panelComparison" class="overflow-x-auto hidden">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead class="bg-slate-50 border-b border-slate-200 text-slate-600">
+              <tr>
+                <th class="py-2.5 px-3 font-semibold">Вариант</th>
+                <th class="py-2.5 px-3 font-semibold">Квартирография</th>
+                <th class="py-2.5 px-3 font-semibold text-right">Квартир</th>
+                <th class="py-2.5 px-3 font-semibold text-right">Продаваемая, м²</th>
+                <th class="py-2.5 px-3 font-semibold text-right">МОП, м²</th>
+                <th class="py-2.5 px-3 font-semibold text-right">КЭП, %</th>
+                <th class="py-2.5 px-3 font-semibold text-right">Соответствие ТЗ</th>
+                <th class="py-2.5 px-3 font-semibold text-right">Действие</th>
+              </tr>
+            </thead>
+            <tbody id="comparisonBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Toast notification -->
+  <div id="toast" class="fixed bottom-4 right-4 bg-slate-900 text-white text-xs font-medium px-3.5 py-2.5 rounded-lg shadow-lg opacity-0 pointer-events-none transition-opacity duration-200 z-50"></div>
+
+<script>
+(function() {
+  // =========================================================
+  // 1. CONSTANTS & ARCHITECTURAL PARAMETERS (C1 / C5 MODEL)
+  // =========================================================
+  const DEPTH_TOP = 6.1;      // Оси В–Г (м)
+  const DEPTH_CORR = 1.8;     // Оси Б–В (коридор, м)
+  const DEPTH_BOT = 6.1;      // Оси А–Б (м)
+  const TOTAL_DEPTH = 14.0;   // Полная глубина корпуса (м)
+  const MODULE = 3.2;         // Базовый конструктивный шаг (как в С5, м)
+  const WALL_EXT = 0.30;      // Наружная стена (газобетон + утеплитель, м)
+  const WALL_INT = 0.20;      // Межквартирная стена (м)
+  const WALL_PART = 0.10;     // Внутриквартирная перегородка (м)
+  const BALCONY_AREA = 1.66;  // Площадь балкона по С1 (м²)
+  const BALCONY_COEF = 0.3;   // Понижающий коэф. балкона (0.50 м²)
+
+  const COLORS = {
+    '1К': { fill: '#e0f2fe', stroke: '#0284c7', badge: '#0369a1', bg: 'bg-sky-100 text-sky-800' },
+    '2К': { fill: '#fef3c7', stroke: '#d97706', badge: '#b45309', bg: 'bg-amber-100 text-amber-800' },
+    '3К': { fill: '#d1fae5', stroke: '#059669', badge: '#047857', bg: 'bg-emerald-100 text-emerald-800' },
+    'МОП': { fill: '#f1f5f9', stroke: '#64748b', badge: '#475569', bg: 'bg-slate-100 text-slate-700' }
+  };
+
+  // =========================================================
+  // 2. APPLICATION STATE
+  // =========================================================
+  const state = {
+    preset: 'C5',
+    length: 41.6,
+    corePos: 'center',   // 'left' | 'center' | 'right'
+    coreSide: 'bottom',  // 'bottom' | 'top'
+    balconies: false,
+    mix1: 55,
+    mix2: 30,
+    mix3: 15,
+    style: 'zoning',     // 'zoning' | 'cad'
+    layers: {
+      axes: true,
+      furniture: true,
+      labels: true,
+      stamps: true
+    },
+    zoom: 1.0,
+    activeTab: 'explication',
+    filterType: 'ALL',
+    selectedAptId: null,
+    variants: [],
+    activeVariantIdx: 0,
+    seed: 1
+  };
+
+  // =========================================================
+  // 3. SEEDED PRNG
+  // =========================================================
+  function mulberry32(a) {
+    return function() {
+      let t = a += 0x6D2B79F5;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function round2(v) {
+    return Math.round(v * 100) / 100;
+  }
+
+  function fmtNum(v) {
+    return round2(v).toFixed(2).replace('.', ',');
+  }
+
+  // =========================================================
+  // 4. GENERATIVE SOLVER FOR 14m SECTION
+  // =========================================================
+  function generateAllVariants() {
+    const variants = [];
+    const totalMods = Math.round(state.length / MODULE);
+    // Core width is 2 modules (6.4 m) for >= 28.8m sections, or 1.5 modules (4.8m) for compact C1-like sections
+    const isCompact = state.length <= 24.0;
+    const coreWidth = isCompact ? 5.6 : 6.4;
+
+    // Determine core X coordinate
+    let coreX = (state.length - coreWidth) / 2;
+    if (state.corePos === 'left') {
+      coreX = Math.max(MODULE, Math.round((state.length * 0.25) / MODULE) * MODULE);
+    } else if (state.corePos === 'right') {
+      coreX = Math.min(state.length - coreWidth - MODULE, Math.round((state.length * 0.65) / MODULE) * MODULE);
+    } else {
+      // Snap to module grid when possible
+      const centerMod = Math.floor((totalMods - (isCompact ? 2 : 2)) / 2);
+      coreX = isCompact ? round2((state.length - coreWidth) / 2) : round2(centerMod * MODULE);
+    }
+
+    // Generate 6 distinct layout strategies / seeds
+    const strategies = [
+      { name: 'Оптимальный баланс', bias: [0, 0, 0], endWrap: 'both' },
+      { name: 'Максимум 1К / ликвидность', bias: [20, -10, -10], endWrap: 'none' },
+      { name: 'Семейный (торцевые 3К)', bias: [-15, 5, 15], endWrap: 'both' },
+      { name: 'Линейный модульный', bias: [5, 10, -15], endWrap: 'right' },
+      { name: 'Крупные 2К + угловые', bias: [-10, 15, -5], endWrap: 'left' },
+      { name: 'Смешанный (вариация)', bias: [0, -5, 5], endWrap: 'auto' }
+    ];
+
+    for (let i = 0; i < strategies.length; i++) {
+      const rng = mulberry32(state.seed * 1009 + i * 97 + Math.round(state.length * 10));
+      const strat = strategies[i];
+      const variant = buildFloorPlanVariant({
+        id: i + 1,
+        label: `Вариант ${i + 1}`,
+        strategyName: strat.name,
+        length: state.length,
+        coreX,
+        coreWidth,
+        coreSide: state.coreSide,
+        balconies: state.balconies,
+        targetMix: normalizeMix(
+          Math.max(0, state.mix1 + strat.bias[0]),
+          Math.max(0, state.mix2 + strat.bias[1]),
+          Math.max(0, state.mix3 + strat.bias[2])
+        ),
+        endWrap: strat.endWrap,
+        rng,
+        isC1Template: state.preset === 'C1' && i === 0 && Math.abs(state.length - 22.8) < 0.5
+      });
+      variants.push(variant);
+    }
+
+    // Compute match score against user's exact targetMix
+    const userTarget = normalizeMix(state.mix1, state.mix2, state.mix3);
+    variants.forEach(v => {
+      const total = v.apartments.length || 1;
+      const p1 = (v.counts['1К'] / total) * 100;
+      const p2 = (v.counts['2К'] / total) * 100;
+      const p3 = (v.counts['3К'] / total) * 100;
+      const diff = (Math.abs(p1 - userTarget[0]) + Math.abs(p2 - userTarget[1]) + Math.abs(p3 - userTarget[2])) / 2;
+      v.matchScore = Math.max(0, Math.round(100 - diff));
+    });
+
+    // Sort so best matching variant is #1 (unless C1 template exact match is #1)
+    variants.sort((a, b) => b.matchScore - a.matchScore || b.metrics.efficiency - a.metrics.efficiency);
+    variants.forEach((v, idx) => { v.label = `Вариант ${idx + 1}`; });
+
+    state.variants = variants;
+    if (state.activeVariantIdx >= variants.length) state.activeVariantIdx = 0;
+    state.selectedAptId = null;
+  }
+
+  function normalizeMix(m1, m2, m3) {
+    const sum = m1 + m2 + m3;
+    if (sum <= 0) return [50, 35, 15];
+    return [(m1 / sum) * 100, (m2 / sum) * 100, (m3 / sum) * 100];
+  }
+
+  function buildFloorPlanVariant(cfg) {
+    const { length, coreX, coreWidth, coreSide, balconies, targetMix, endWrap, rng } = cfg;
+    const apartments = [];
+    let aptCounter = 1;
+
+    // Define spans on Top (y=0..6.1) and Bottom (y=7.9..14.0)
+    // Reserve end-cap wrap-around 3K if requested and length allows
+    let topStart = 0, topEnd = length;
+    let botStart = 0, botEnd = length;
+
+    // Left end wrap-around 3K? (only if core doesn't block left end)
+    const canWrapLeft = coreX >= 6.4;
+    const canWrapRight = (length - (coreX + coreWidth)) >= 6.4;
+
+    const want3K = targetMix[2] >= 12;
+    const doLeftWrap = canWrapLeft && want3K && (endWrap === 'both' || endWrap === 'left' || (endWrap === 'auto' && rng() > 0.45));
+    const doRightWrap = canWrapRight && want3K && (endWrap === 'both' || endWrap === 'right' || (endWrap === 'auto' && rng() > 0.55));
+
+    // Corridor extents: corridor stops at end-cap apartments if they span full depth
+    let corrStart = 0.2;
+    let corrEnd = length - 0.2;
+
+    if (doLeftWrap) {
+      const w = (length <= 26) ? 6.4 : (rng() > 0.5 ? 6.4 : 5.6);
+      apartments.push(createEndCap3K(aptCounter++, 0, w, 'left', balconies));
+      topStart = w;
+      botStart = w;
+      corrStart = w;
+    }
+
+    if (doRightWrap) {
+      const w = (length <= 26) ? 6.4 : (rng() > 0.5 ? 6.4 : 5.6);
+      apartments.push(createEndCap3K(aptCounter++, length - w, w, 'right', balconies));
+      topEnd = length - w;
+      botEnd = length - w;
+      corrEnd = length - w;
+    }
+
+    // Build free segments for Top and Bottom strips
+    const topSegments = [];
+    const botSegments = [];
+
+    if (coreSide === 'top') {
+      if (coreX - topStart >= 4.2) topSegments.push({ x1: topStart, x2: coreX });
+      if (topEnd - (coreX + coreWidth) >= 4.2) topSegments.push({ x1: coreX + coreWidth, x2: topEnd });
+      if (botEnd - botStart >= 4.2) botSegments.push({ x1: botStart, x2: botEnd });
+    } else {
+      if (topEnd - topStart >= 4.2) topSegments.push({ x1: topStart, x2: topEnd });
+      if (coreX - botStart >= 4.2) botSegments.push({ x1: botStart, x2: coreX });
+      if (botEnd - (coreX + coreWidth) >= 4.2) botSegments.push({ x1: coreX + coreWidth, x2: botEnd });
+    }
+
+    // Pack apartments into each segment
+    topSegments.forEach(seg => {
+      const packed = packStripSegment(seg.x1, seg.x2, 'top', targetMix, rng, balconies);
+      packed.forEach(a => {
+        a.index = aptCounter++;
+        a.number = `1.${a.index}`;
+        apartments.push(a);
+      });
+    });
+
+    botSegments.forEach(seg => {
+      const packed = packStripSegment(seg.x1, seg.x2, 'bottom', targetMix, rng, balconies);
+      packed.forEach(a => {
+        a.index = aptCounter++;
+        a.number = `1.${a.index}`;
+        apartments.push(a);
+      });
+    });
+
+    // Re-number rooms cleanly (e.g. 1.1, 1.2 ... or 5.1, 5.2)
+    apartments.sort((a, b) => (a.side === b.side ? a.x - b.x : (a.side === 'top' ? -1 : 1)));
+    apartments.forEach((apt, idx) => {
+      apt.id = `apt-${idx + 1}`;
+      apt.index = idx + 1;
+      apt.number = `1.${idx + 1}`;
+      apt.rooms.forEach((r, rIdx) => {
+        r.code = `${idx + 1}.${rIdx + 1}`;
+      });
+    });
+
+    // Core (ЛЛУ) & Corridor (МОП) geometry
+    const coreY = coreSide === 'top' ? 0 : (DEPTH_TOP + DEPTH_CORR);
+    const stairW = round2(coreWidth * 0.56);
+    const hallW = round2(coreWidth - stairW);
+    const stairArea = round2((stairW - 0.3) * (DEPTH_TOP - 0.4));
+    const liftHallArea = round2((hallW - 0.2) * (DEPTH_TOP - 0.4) * 0.68); // excluding lift shaft
+    const corridorArea = round2(Math.max(6, (corrEnd - corrStart) - 4.0) * DEPTH_CORR);
+
+    const mopRooms = [
+      { code: 'МОП.1', name: 'Коридор общий', area: corridorArea, areaCoef: corridorArea, isLiving: false },
+      { code: 'МОП.2', name: 'Лестничная клетка (ЛК)', area: stairArea, areaCoef: stairArea, isLiving: false },
+      { code: 'МОП.3', name: 'Лифтовый холл + зона МГН', area: liftHallArea, areaCoef: liftHallArea, isLiving: false }
+    ];
+
+    // Calculate totals
+    let sellableCoef = 0;
+    let sellableFull = 0;
+    let livingTotal = 0;
+    const counts = { '1К': 0, '2К': 0, '3К': 0 };
+
+    apartments.forEach(apt => {
+      counts[apt.type] = (counts[apt.type] || 0) + 1;
+      sellableCoef += apt.areaCoef;
+      sellableFull += apt.areaFull;
+      livingTotal += apt.areaLiving;
+    });
+
+    const mopTotal = round2(mopRooms.reduce((s, r) => s + r.area, 0));
+    const floorAreaSP = round2(length * TOTAL_DEPTH);
+    const efficiency = floorAreaSP > 0 ? round2((sellableCoef / floorAreaSP) * 100) : 0;
+
+    return {
+      id: cfg.id,
+      label: cfg.label,
+      strategyName: cfg.strategyName,
+      length,
+      core: { x: coreX, y: coreY, w: coreWidth, h: DEPTH_TOP, side: coreSide, stairW, hallW },
+      corridor: { x1: corrStart, x2: corrEnd, y: DEPTH_TOP, h: DEPTH_CORR },
+      apartments,
+      mopRooms,
+      counts,
+      metrics: {
+        floorAreaSP,
+        sellableCoef: round2(sellableCoef),
+        sellableFull: round2(sellableFull),
+        livingTotal: round2(livingTotal),
+        mopTotal,
+        efficiency
+      }
+    };
+  }
+
+  // Pack a linear strip [x1, x2] with 1K, 2K, 3K units
+  function packStripSegment(x1, x2, side, targetMix, rng, balconies) {
+    const span = round2(x2 - x1);
+    const units = [];
+    // Allowable unit widths (m):
+    // 1K: 5.2 .. 6.8 (ideal 6.0-6.4)
+    // 2K: 8.4 .. 10.6 (ideal 9.2-9.6)
+    // 3K (linear): 11.8 .. 13.6 (ideal 12.8)
+    let remaining = span;
+    let cursor = x1;
+    const chosenTypes = [];
+
+    while (remaining > 0.01) {
+      if (remaining <= 7.4) {
+        chosenTypes.push({ type: '1К', w: remaining });
+        remaining = 0;
+      } else if (remaining <= 10.6) {
+        // Either one 2K or two small 1K if >= 10.2
+        if (remaining >= 10.2 && rng() * 100 < targetMix[0]) {
+          const w1 = round2(remaining / 2);
+          chosenTypes.push({ type: '1К', w: w1 });
+          chosenTypes.push({ type: '1К', w: round2(remaining - w1) });
+        } else {
+          chosenTypes.push({ type: '2К', w: remaining });
+        }
+        remaining = 0;
+      } else {
+        // Choose next unit based on targetMix weights
+        const roll = rng() * 100;
+        let pick = '1К';
+        let w = 6.4;
+        if (roll < targetMix[0]) {
+          pick = '1К';
+          w = (remaining >= 12.0 && rng() > 0.3) ? 6.4 : 5.8;
+        } else if (roll < targetMix[0] + targetMix[1]) {
+          pick = '2К';
+          w = rng() > 0.4 ? 9.6 : 8.8;
+        } else {
+          pick = '3К';
+          w = 12.8;
+        }
+
+        // Prevent awkward tiny leftover (< 5.0 m)
+        const left = round2(remaining - w);
+        if (left > 0 && left < 5.0) {
+          if (remaining <= 11.2) {
+            chosenTypes.push({ type: '2К', w: remaining });
+            remaining = 0;
+            continue;
+          } else {
+            w = round2(remaining / 2);
+            pick = w >= 8.2 ? '2К' : '1К';
+          }
+        }
+        chosenTypes.push({ type: pick, w });
+        remaining = round2(remaining - w);
+      }
+    }
+
+    chosenTypes.forEach(item => {
+      const apt = createLinearApartment(item.type, cursor, item.w, side, balconies);
+      units.push(apt);
+      cursor = round2(cursor + item.w);
+    });
+
+    return units;
+  }
+
+  // Create parametric rooms for a linear 1K, 2K, or 3K apartment (depth 6.1m)
+  function createLinearApartment(type, x, w, side, balconies) {
+    const y = side === 'top' ? 0 : (DEPTH_TOP + DEPTH_CORR);
+    const h = DEPTH_TOP; // 6.1 m
+    const innerX = x + WALL_INT / 2;
+    const innerW = w - WALL_INT;
+    const innerH = h - WALL_EXT - WALL_INT / 2; // ~5.7 m usable depth
+    const isTop = side === 'top';
+
+    // Corridor side is bottom for 'top' apartments, top for 'bottom' apartments
+    const corrZoneH = 2.05; // Прихожая + санузел depth along corridor
+    const facadeZoneH = round2(innerH - corrZoneH); // Комнаты + кухня along facade (~3.65m)
+
+    const yFacade = isTop ? (y + WALL_EXT) : (y + WALL_INT / 2 + corrZoneH);
+    const yCorr = isTop ? (y + WALL_EXT + facadeZoneH) : (y + WALL_INT / 2);
+
+    const rooms = [];
+
+    if (type === '1К') {
+      const bathW = round2(Math.min(2.15, innerW * 0.36));
+      const hallW = round2(innerW - bathW);
+      const kitchenW = round2(innerW * 0.46);
+      const roomW = round2(innerW - kitchenW);
+
+      rooms.push({ name: 'Прихожая', kind: 'hall', isLiving: false, x: innerX, y: yCorr, w: hallW, h: corrZoneH });
+      rooms.push({ name: 'Сан. узел', kind: 'bath', isLiving: false, x: innerX + hallW, y: yCorr, w: bathW, h: corrZoneH });
+      rooms.push({ name: 'Кухня', kind: 'kitchen', isLiving: false, x: innerX + roomW, y: yFacade, w: kitchenW, h: facadeZoneH });
+      rooms.push({ name: 'Комната', kind: 'room', isLiving: true, x: innerX, y: yFacade, w: roomW, h: facadeZoneH });
+    } else if (type === '2К') {
+      const bathW = 2.1;
+      const wcW = 1.35;
+      const hallW = round2(innerW - bathW - wcW);
+      const kitchenW = round2(innerW * 0.36);
+      const remW = round2(innerW - kitchenW);
+      const r1W = round2(remW * 0.52);
+      const r2W = round2(remW - r1W);
+
+      rooms.push({ name: 'Прихожая', kind: 'hall', isLiving: false, x: innerX + wcW, y: yCorr, w: hallW, h: corrZoneH });
+      rooms.push({ name: 'Уборная', kind: 'wc', isLiving: false, x: innerX, y: yCorr, w: wcW, h: corrZoneH });
+      rooms.push({ name: 'Сан. узел', kind: 'bath', isLiving: false, x: innerX + wcW + hallW, y: yCorr, w: bathW, h: corrZoneH });
+      rooms.push({ name: 'Комната', kind: 'room', isLiving: true, x: innerX, y: yFacade, w: r1W, h: facadeZoneH });
+      rooms.push({ name: 'Комната', kind: 'room', isLiving: true, x: innerX + r1W, y: yFacade, w: r2W, h: facadeZoneH });
+      rooms.push({ name: 'Кухня', kind: 'kitchen', isLiving: false, x: innerX + r1W + r2W, y: yFacade, w: kitchenW, h: facadeZoneH });
+    } else {
+      // Linear 3K
+      const bathW = 2.2;
+      const wcW = 1.6;
+      const hallW = round2(innerW - bathW - wcW);
+      const kitchenW = round2(innerW * 0.30);
+      const remW = round2(innerW - kitchenW);
+      const r1W = round2(remW * 0.34);
+      const r2W = round2(remW * 0.33);
+      const r3W = round2(remW - r1W - r2W);
+
+      rooms.push({ name: 'Прихожая', kind: 'hall', isLiving: false, x: innerX + wcW, y: yCorr, w: hallW, h: corrZoneH });
+      rooms.push({ name: 'Сан. узел', kind: 'wc', isLiving: false, x: innerX, y: yCorr, w: wcW, h: corrZoneH });
+      rooms.push({ name: 'Сан. узел', kind: 'bath', isLiving: false, x: innerX + wcW + hallW, y: yCorr, w: bathW, h: corrZoneH });
+      rooms.push({ name: 'Комната', kind: 'room', isLiving: true, x: innerX, y: yFacade, w: r1W, h: facadeZoneH });
+      rooms.push({ name: 'Комната', kind: 'room', isLiving: true, x: innerX + r1W, y: yFacade, w: r2W, h: facadeZoneH });
+      rooms.push({ name: 'Комната', kind: 'room', isLiving: true, x: innerX + r1W + r2W, y: yFacade, w: r3W, h: facadeZoneH });
+      rooms.push({ name: 'Кухня', kind: 'kitchen', isLiving: false, x: innerX + remW, y: yFacade, w: kitchenW, h: facadeZoneH });
+    }
+
+    // Calculate net room areas (accounting for partition thickness factor ~0.95)
+    rooms.forEach(r => {
+      const netArea = round2(r.w * r.h * 0.98);
+      r.area = netArea;
+      r.areaCoef = netArea;
+    });
+
+    if (balconies) {
+      const balW = 2.1;
+      const balH = 0.8;
+      const balX = innerX + (innerW - balW) / 2;
+      const balY = isTop ? (y - balH) : (y + h);
+      rooms.push({
+        name: 'Балкон',
+        kind: 'balcony',
+        isLiving: false,
+        x: balX,
+        y: balY,
+        w: balW,
+        h: balH,
+        area: BALCONY_AREA,
+        areaCoef: round2(BALCONY_AREA * BALCONY_COEF)
+      });
+    }
+
+    return finalizeApartment(type, x, y, w, h, side, rooms);
+  }
+
+  // Create full-depth end-cap 3K apartment (like Apt 1.8 in C1 or 5.16 in C5)
+  function createEndCap3K(index, x, w, endSide, balconies) {
+    const y = 0;
+    const h = TOTAL_DEPTH; // 14.0 m
+    const innerX = endSide === 'left' ? (x + WALL_EXT) : (x + WALL_INT / 2);
+    const innerW = w - WALL_EXT - WALL_INT / 2;
+    const innerY = WALL_EXT;
+    const innerH = TOTAL_DEPTH - 2 * WALL_EXT; // 13.4 m
+
+    const topH = 4.55;
+    const midH = 4.30;
+    const botH = round2(innerH - topH - midH); // 4.55
+
+    const rooms = [];
+    // Top: Room 1 + Kitchen-Living
+    const r1W = round2(innerW * 0.48);
+    const kW = round2(innerW - r1W);
+    rooms.push({ name: 'Комната', kind: 'room', isLiving: true, x: innerX, y: innerY, w: r1W, h: topH });
+    rooms.push({ name: 'Кухня-гостиная', kind: 'kitchen', isLiving: false, x: innerX + r1W, y: innerY, w: kW, h: topH });
+
+    // Middle: Room 2 (exterior end) + Hallway + 2 Bathrooms (corridor side)
+    const r2W = round2(innerW * 0.50);
+    const servW = round2(innerW - r2W);
+    const hallH = round2(midH * 0.50);
+    const bathH = round2(midH - hallH);
+    const b1W = round2(servW * 0.52);
+    const b2W = round2(servW - b1W);
+
+    if (endSide === 'left') {
+      rooms.push({ name: 'Комната', kind: 'room', isLiving: true, x: innerX, y: innerY + topH, w: r2W, h: midH });
+      rooms.push({ name: 'Прихожая', kind: 'hall', isLiving: false, x: innerX + r2W, y: innerY + topH, w: servW, h: hallH });
+      rooms.push({ name: 'Сан. узел', kind: 'bath', isLiving: false, x: innerX + r2W, y: innerY + topH + hallH, w: b1W, h: bathH });
+      rooms.push({ name: 'Уборная', kind: 'wc', isLiving: false, x: innerX + r2W + b1W, y: innerY + topH + hallH, w: b2W, h: bathH });
+    } else {
+      rooms.push({ name: 'Прихожая', kind: 'hall', isLiving: false, x: innerX, y: innerY + topH, w: servW, h: hallH });
+      rooms.push({ name: 'Сан. узел', kind: 'bath', isLiving: false, x: innerX, y: innerY + topH + hallH, w: b1W, h: bathH });
+      rooms.push({ name: 'Уборная', kind: 'wc', isLiving: false, x: innerX + b1W, y: innerY + topH + hallH, w: b2W, h: bathH });
+      rooms.push({ name: 'Комната', kind: 'room', isLiving: true, x: innerX + servW, y: innerY + topH, w: r2W, h: midH });
+    }
+
+    // Bottom: Master Bedroom + Wardrobe/Study
+    const r3W = round2(innerW * 0.65);
+    const wardW = round2(innerW - r3W);
+    rooms.push({ name: 'Комната', kind: 'room', isLiving: true, x: innerX, y: innerY + topH + midH, w: r3W, h: botH });
+    rooms.push({ name: 'Гардеробная', kind: 'hall', isLiving: false, x: innerX + r3W, y: innerY + topH + midH, w: wardW, h: botH });
+
+    rooms.forEach(r => {
+      const netArea = round2(r.w * r.h * 0.98);
+      r.area = netArea;
+      r.areaCoef = netArea;
+    });
+
+    if (balconies) {
+      const balW = 2.1;
+      const balH = 0.8;
+      rooms.push({
+        name: 'Балкон',
+        kind: 'balcony',
+        isLiving: false,
+        x: innerX + (innerW - balW) / 2,
+        y: -balH,
+        w: balW,
+        h: balH,
+        area: BALCONY_AREA,
+        areaCoef: round2(BALCONY_AREA * BALCONY_COEF)
+      });
+    }
+
+    return finalizeApartment('3К', x, y, w, h, endSide, rooms);
+  }
+
+  function finalizeApartment(type, x, y, w, h, side, rooms) {
+    const areaFull = round2(rooms.reduce((s, r) => s + r.area, 0));
+    const areaCoef = round2(rooms.reduce((s, r) => s + r.areaCoef, 0));
+    const areaNoBalc = round2(rooms.filter(r => r.kind !== 'balcony').reduce((s, r) => s + r.area, 0));
+    const areaLiving = round2(rooms.filter(r => r.isLiving).reduce((s, r) => s + r.area, 0));
+    return {
+      id: '',
+      index: 0,
+      number: '',
+      type,
+      x, y, w, h,
+      side,
+      rooms,
+      areaFull,
+      areaCoef,
+      areaNoBalc,
+      areaLiving
+    };
+  }
+
+  // Mutate a single apartment (e.g. split 2K -> two 1K or toggle type) when user clicks button in inspector
+  function splitSelectedApartment() {
+    const variant = state.variants[state.activeVariantIdx];
+    if (!variant || !state.selectedAptId) return;
+    const idx = variant.apartments.findIndex(a => a.id === state.selectedAptId);
+    if (idx === -1) return;
+    const apt = variant.apartments[idx];
+    if (apt.side === 'left' || apt.side === 'right') {
+      showToast('Торцевую 3К можно перенастроить через ползунки квартирографии');
+      return;
+    }
+    if (apt.w < 8.4) {
+      showToast('Ширина квартиры слишком мала для разделения (нужно от 8,4 м)');
+      return;
+    }
+    const half = round2(apt.w / 2);
+    const a1 = createLinearApartment('1К', apt.x, half, apt.side, state.balconies);
+    const a2 = createLinearApartment('1К', round2(apt.x + half), round2(apt.w - half), apt.side, state.balconies);
+    variant.apartments.splice(idx, 1, a1, a2);
+    recalcVariantMetrics(variant);
+    state.selectedAptId = null;
+    renderAll();
+    showToast('Квартира разделена на две 1К — экспликация обновлена');
+  }
+
+  function recalcVariantMetrics(variant) {
+    variant.apartments.sort((a, b) => (a.side === b.side ? a.x - b.x : (a.side === 'top' ? -1 : 1)));
+    let sellableCoef = 0, sellableFull = 0, livingTotal = 0;
+    const counts = { '1К': 0, '2К': 0, '3К': 0 };
+    variant.apartments.forEach((apt, i) => {
+      apt.id = `apt-${i + 1}`;
+      apt.index = i + 1;
+      apt.number = `1.${i + 1}`;
+      apt.rooms.forEach((r, ri) => { r.code = `${i + 1}.${ri + 1}`; });
+      counts[apt.type] = (counts[apt.type] || 0) + 1;
+      sellableCoef += apt.areaCoef;
+      sellableFull += apt.areaFull;
+      livingTotal += apt.areaLiving;
+    });
+    variant.counts = counts;
+    variant.metrics.sellableCoef = round2(sellableCoef);
+    variant.metrics.sellableFull = round2(sellableFull);
+    variant.metrics.livingTotal = round2(livingTotal);
+    variant.metrics.efficiency = variant.metrics.floorAreaSP > 0
+      ? round2((sellableCoef / variant.metrics.floorAreaSP) * 100)
+      : 0;
+  }
+
+  // =========================================================
+  // 5. ARCHITECTURAL SVG RENDERER
+  // =========================================================
+  function renderPlanSVG(variant) {
+    const SCALE = 26; // px per meter
+    const PAD_L = 78;
+    const PAD_R = 46;
+    const PAD_T = 76;
+    const PAD_B = 76;
+
+    const svgW = Math.round(variant.length * SCALE + PAD_L + PAD_R);
+    const svgH = Math.round(TOTAL_DEPTH * SCALE + PAD_T + PAD_B);
+
+    const sx = (m) => round2(PAD_L + m * SCALE);
+    const sy = (m) => round2(PAD_T + m * SCALE);
+    const sw = (m) => round2(m * SCALE);
+
+    const isCAD = state.style === 'cad';
+    const parts = [];
+
+    parts.push(`<svg id="floorplanSvg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgW} ${svgH}" style="display:block; width:${Math.round(state.zoom * 100)}%; min-width:${Math.round(svgW * 0.72 * state.zoom)}px; height:auto; margin:0 auto; font-family: Inter, sans-serif;">`);
+
+    // Defs: concrete hatch & patterns
+    parts.push(`
+      <defs>
+        <pattern id="hatchConcrete" width="6" height="6" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+          <rect width="6" height="6" fill="#334155" />
+          <line x1="0" y1="0" x2="0" y2="6" stroke="#94a3b8" stroke-width="1.2" />
+        </pattern>
+        <pattern id="hatchWall" width="5" height="5" patternTransform="rotate(-45 0 0)" patternUnits="userSpaceOnUse">
+          <rect width="5" height="5" fill="#e2e8f0" />
+          <line x1="0" y1="0" x2="0" y2="5" stroke="#94a3b8" stroke-width="0.9" />
+        </pattern>
+      </defs>
+    `);
+
+    // 1. Structural Axes & Dimensions
+    if (state.layers.axes) {
+      const yAxes = [
+        { label: 'Г', y: 0 },
+        { label: 'В', y: DEPTH_TOP },
+        { label: 'Б', y: DEPTH_TOP + DEPTH_CORR },
+        { label: 'А', y: TOTAL_DEPTH }
+      ];
+      yAxes.forEach(ax => {
+        const py = sy(ax.y);
+        parts.push(`<line x1="${PAD_L - 44}" y1="${py}" x2="${sx(variant.length) + 18}" y2="${py}" stroke="#cbd5e1" stroke-width="0.8" stroke-dasharray="6,3,1.5,3" />`);
+        parts.push(`<circle cx="${PAD_L - 54}" cy="${py}" r="10" fill="#ffffff" stroke="#64748b" stroke-width="1" />`);
+        parts.push(`<text x="${PAD_L - 54}" y="${py + 3.5}" text-anchor="middle" font-size="10" font-weight="600" fill="#334155">${ax.label}</text>`);
+      });
+
+      // Vertical dimension chain on left (6100, 1800, 6100 & 14000)
+      const dx1 = PAD_L - 22;
+      parts.push(`<line x1="${dx1}" y1="${sy(0)}" x2="${dx1}" y2="${sy(TOTAL_DEPTH)}" stroke="#94a3b8" stroke-width="0.9" />`);
+      [
+        { y1: 0, y2: DEPTH_TOP, txt: '6 100' },
+        { y1: DEPTH_TOP, y2: DEPTH_TOP + DEPTH_CORR, txt: '1 800' },
+        { y1: DEPTH_TOP + DEPTH_CORR, y2: TOTAL_DEPTH, txt: '6 100' }
+      ].forEach(d => {
+        const my = (sy(d.y1) + sy(d.y2)) / 2;
+        parts.push(`<line x1="${dx1 - 3}" y1="${sy(d.y1)}" x2="${dx1 + 3}" y2="${sy(d.y1)}" stroke="#64748b" stroke-width="1" />`);
+        parts.push(`<text x="${dx1 - 5}" y="${my + 3}" text-anchor="end" font-size="8.5" fill="#64748b" transform="rotate(-90 ${dx1 - 5} ${my})">${d.txt}</text>`);
+      });
+      parts.push(`<line x1="${dx1 - 3}" y1="${sy(TOTAL_DEPTH)}" x2="${dx1 + 3}" y2="${sy(TOTAL_DEPTH)}" stroke="#64748b" stroke-width="1" />`);
+
+      // Horizontal structural axes (every MODULE = 3.2m)
+      const numSteps = Math.round(variant.length / MODULE);
+      for (let i = 0; i <= numSteps; i++) {
+        const xm = Math.min(variant.length, round2(i * MODULE));
+        const px = sx(xm);
+        parts.push(`<line x1="${px}" y1="${PAD_T - 20}" x2="${px}" y2="${sy(TOTAL_DEPTH) + 38}" stroke="#cbd5e1" stroke-width="0.7" stroke-dasharray="6,3,1.5,3" />`);
+        parts.push(`<circle cx="${px}" cy="${sy(TOTAL_DEPTH) + 50}" r="9.5" fill="#ffffff" stroke="#64748b" stroke-width="1" />`);
+        parts.push(`<text x="${px}" y="${sy(TOTAL_DEPTH) + 53.5}" text-anchor="middle" font-size="9.5" font-weight="600" fill="#334155">${i + 1}</text>`);
+      }
+
+      // Total length dimension at bottom
+      const dyBot = sy(TOTAL_DEPTH) + 28;
+      parts.push(`<line x1="${sx(0)}" y1="${dyBot}" x2="${sx(variant.length)}" y2="${dyBot}" stroke="#64748b" stroke-width="1" />`);
+      parts.push(`<text x="${sx(variant.length / 2)}" y="${dyBot - 4}" text-anchor="middle" font-size="10" font-weight="700" fill="#334155">${Math.round(variant.length * 1000).toLocaleString('ru-RU')} мм</text>`);
+    }
+
+    // 2. Outer Building Shell Background
+    parts.push(`<rect x="${sx(0)}" y="${sy(0)}" width="${sw(variant.length)}" height="${sw(TOTAL_DEPTH)}" fill="#ffffff" stroke="#0f172a" stroke-width="2.5" />`);
+
+    // 3. Corridor (МОП)
+    const c = variant.corridor;
+    parts.push(`<rect x="${sx(c.x1)}" y="${sy(c.y)}" width="${sw(c.x2 - c.x1)}" height="${sw(c.h)}" fill="${isCAD ? '#f8fafc' : '#f1f5f9'}" stroke="#475569" stroke-width="1.2" />`);
+    if (state.layers.labels) {
+      parts.push(`<text x="${sx((c.x1 + c.x2) / 2)}" y="${sy(c.y + c.h / 2) + 3.5}" text-anchor="middle" font-size="9.5" font-weight="600" fill="#475569">МОП · Коридор ${fmtNum(variant.mopRooms[0].area)} м² (шир. 1 800)</text>`);
+    }
+
+    // 4. Core (ЛЛУ — Staircase + Lift + MGN)
+    const core = variant.core;
+    parts.push(`<g class="core-group">`);
+    parts.push(`<rect x="${sx(core.x)}" y="${sy(core.y)}" width="${sw(core.w)}" height="${sw(core.h)}" fill="${isCAD ? '#f8fafc' : '#e2e8f0'}" stroke="#0f172a" stroke-width="2.2" />`);
+    // Staircase steps
+    const stX = sx(core.x + 0.25);
+    const stY = sy(core.y + 0.35);
+    const stW = sw(core.stairW - 0.5);
+    const stH = sw(core.h - 0.7);
+    parts.push(`<rect x="${stX}" y="${stY}" width="${stW}" height="${stH}" fill="#ffffff" stroke="#334155" stroke-width="1.2" />`);
+    const midStX = stX + stW / 2;
+    parts.push(`<line x1="${midStX}" y1="${stY + 18}" x2="${midStX}" y2="${stY + stH - 18}" stroke="#334155" stroke-width="1.2" />`);
+    const numTreads = 9;
+    for (let t = 0; t <= numTreads; t++) {
+      const ty = stY + 18 + (t / numTreads) * (stH - 36);
+      parts.push(`<line x1="${stX}" y1="${ty}" x2="${midStX}" y2="${ty}" stroke="#94a3b8" stroke-width="0.8" />`);
+      parts.push(`<line x1="${midStX}" y1="${ty}" x2="${stX + stW}" y2="${ty}" stroke="#94a3b8" stroke-width="0.8" />`);
+    }
+    // Elevator shaft (crossed box)
+    const elX = sx(core.x + core.stairW + 0.25);
+    const elY = sy(core.y + (core.side === 'bottom' ? 2.5 : 0.4));
+    const elW = sw(core.hallW - 0.5);
+    const elH = sw(2.3);
+    parts.push(`<rect x="${elX}" y="${elY}" width="${elW}" height="${elH}" fill="#e2e8f0" stroke="#0f172a" stroke-width="1.6" />`);
+    parts.push(`<line x1="${elX}" y1="${elY}" x2="${elX + elW}" y2="${elY + elH}" stroke="#64748b" stroke-width="1" />`);
+    parts.push(`<line x1="${elX + elW}" y1="${elY}" x2="${elX}" y2="${elY + elH}" stroke="#64748b" stroke-width="1" />`);
+    parts.push(`<text x="${elX + elW / 2}" y="${elY + elH / 2 + 3.5}" text-anchor="middle" font-size="9" font-weight="700" fill="#1e293b">ЛИФТ</text>`);
+
+    // MGN safety zone indicator
+    const mgnY = core.side === 'bottom' ? sy(core.y + 1.1) : sy(core.y + 4.3);
+    parts.push(`<rect x="${elX + 4}" y="${mgnY}" width="${elW - 8}" height="20" rx="3" fill="#fee2e2" stroke="#dc2626" stroke-width="0.9" stroke-dasharray="3,2" />`);
+    parts.push(`<text x="${elX + elW / 2}" y="${mgnY + 13}" text-anchor="middle" font-size="8" font-weight="700" fill="#b91c1c">МГН · EI60</text>`);
+    parts.push(`</g>`);
+
+    // 5. Apartments
+    variant.apartments.forEach(apt => {
+      const col = COLORS[apt.type] || COLORS['1К'];
+      const isSelected = state.selectedAptId === apt.id;
+      parts.push(`<g class="apt-group ${isSelected ? 'apt-selected' : ''}" data-apt-id="${apt.id}">`);
+
+      // Rooms
+      apt.rooms.forEach(r => {
+        const rx = sx(r.x), ry = sy(r.y), rw = sw(r.w), rh = sw(r.h);
+        let roomFill = '#ffffff';
+        if (!isCAD) {
+          if (r.kind === 'room') roomFill = col.fill;
+          else if (r.kind === 'kitchen') roomFill = '#fff7ed';
+          else if (r.kind === 'bath' || r.kind === 'wc') roomFill = '#e0e7ff';
+          else if (r.kind === 'balcony') roomFill = '#f8fafc';
+          else roomFill = '#ffffff';
+        } else if (r.kind === 'bath' || r.kind === 'wc') {
+          roomFill = '#f8fafc';
+        }
+
+        const dash = r.kind === 'balcony' ? 'stroke-dasharray="4,2"' : '';
+        parts.push(`<rect x="${rx}" y="${ry}" width="${rw}" height="${rh}" fill="${roomFill}" stroke="#475569" stroke-width="${r.kind === 'balcony' ? 1 : 1.1}" ${dash} />`);
+
+        // Plumbing shaft marker in bathroom/wc
+        if (r.kind === 'bath' || r.kind === 'wc') {
+          const shW = 10, shH = 8;
+          const shX = rx + 2;
+          const shY = (apt.side === 'top') ? (ry + rh - shH - 2) : (ry + 2);
+          parts.push(`<rect x="${shX}" y="${shY}" width="${shW}" height="${shH}" fill="#334155" />`);
+        }
+
+        // Furniture symbols (clean minimal CAD icons)
+        if (state.layers.furniture && r.kind !== 'balcony') {
+          parts.push(renderRoomFurniture(r, rx, ry, rw, rh, apt.side));
+        }
+
+        // Room labels
+        if (state.layers.labels && rw > 28 && rh > 22) {
+          const cx = rx + rw / 2;
+          const cy = ry + rh / 2;
+          if (r.kind === 'balcony') {
+            parts.push(`<text x="${cx}" y="${cy + 3}" text-anchor="middle" font-size="7.5" fill="#475569">${fmtNum(r.areaCoef)} (${fmtNum(r.area)})</text>`);
+          } else {
+            let shortName = r.name;
+            if (rw < 54) {
+              if (shortName === 'Сан. узел') shortName = 'С/У';
+              else if (shortName === 'Уборная') shortName = 'С/У';
+              else if (shortName === 'Гардеробная') shortName = 'Гард.';
+              else if (shortName === 'Прихожая') shortName = 'Прих.';
+              else if (shortName === 'Кухня-гостиная') shortName = 'Кухня';
+            }
+            const fz = rw < 46 ? 7.2 : 8.2;
+            parts.push(`<text x="${cx}" y="${cy - 2}" text-anchor="middle" font-size="${fz}" font-weight="600" fill="#1e293b">${shortName}</text>`);
+            parts.push(`<text x="${cx}" y="${cy + 9}" text-anchor="middle" font-size="${fz}" fill="#475569">${fmtNum(r.area)} м²</text>`);
+          }
+        }
+      });
+
+      // Apartment outer boundary & hover/selection ring
+      const ax = sx(apt.x), ay = sy(apt.y), aw = sw(apt.w), ah = sw(apt.h);
+      parts.push(`<rect class="apt-hover-overlay" x="${ax}" y="${ay}" width="${aw}" height="${ah}" fill="#2563eb" fill-opacity="0" pointer-events="all" />`);
+      parts.push(`<rect class="apt-selection-ring" x="${ax}" y="${ay}" width="${aw}" height="${ah}" fill="none" stroke="${isSelected ? '#2563eb' : '#0f172a'}" stroke-width="${isSelected ? 3 : 2}" />`);
+
+      // Windows on exterior walls
+      const winColor = '#38bdf8';
+      if (apt.side === 'top' || apt.side === 'left' || apt.side === 'right') {
+        parts.push(`<line x1="${ax + 12}" y1="${ay}" x2="${ax + aw - 12}" y2="${ay}" stroke="${winColor}" stroke-width="3.5" stroke-dasharray="28,16" />`);
+      }
+      if (apt.side === 'bottom' || apt.side === 'left' || apt.side === 'right') {
+        parts.push(`<line x1="${ax + 12}" y1="${ay + ah}" x2="${ax + aw - 12}" y2="${ay + ah}" stroke="${winColor}" stroke-width="3.5" stroke-dasharray="28,16" />`);
+      }
+
+      // Entrance door from corridor
+      const doorW = 14;
+      if (apt.side === 'top') {
+        const dx = ax + aw * 0.35;
+        const dy = ay + ah;
+        parts.push(`<line x1="${dx}" y1="${dy}" x2="${dx + doorW}" y2="${dy}" stroke="#ffffff" stroke-width="3" />`);
+        parts.push(`<path d="M ${dx} ${dy} L ${dx} ${dy - doorW} A ${doorW} ${doorW} 0 0 1 ${dx + doorW} ${dy}" fill="none" stroke="#0f172a" stroke-width="1" />`);
+      } else if (apt.side === 'bottom') {
+        const dx = ax + aw * 0.35;
+        const dy = ay;
+        parts.push(`<line x1="${dx}" y1="${dy}" x2="${dx + doorW}" y2="${dy}" stroke="#ffffff" stroke-width="3" />`);
+        parts.push(`<path d="M ${dx} ${dy} L ${dx} ${dy + doorW} A ${doorW} ${doorW} 0 0 0 ${dx + doorW} ${dy}" fill="none" stroke="#0f172a" stroke-width="1" />`);
+      } else {
+        // End cap door into corridor
+        const dx = apt.side === 'left' ? (ax + aw) : ax;
+        const dy = sy(DEPTH_TOP + 0.5);
+        parts.push(`<line x1="${dx}" y1="${dy}" x2="${dx}" y2="${dy + doorW}" stroke="#ffffff" stroke-width="3" />`);
+      }
+
+      // GOST / SP Apartment Stamp (like C1 & C5 callouts)
+      if (state.layers.stamps) {
+        const stW = 54, stH = 30;
+        const stX = ax + aw / 2 - stW / 2;
+        const stY = apt.side === 'top' ? (PAD_T - 42) : (apt.side === 'bottom' ? (sy(TOTAL_DEPTH) + 6) : (PAD_T - 42));
+        parts.push(`<g>`);
+        parts.push(`<rect x="${stX}" y="${stY}" width="${stW}" height="${stH}" rx="2" fill="#ffffff" stroke="${col.stroke}" stroke-width="1.2" />`);
+        parts.push(`<line x1="${stX + 20}" y1="${stY}" x2="${stX + 20}" y2="${stY + stH}" stroke="${col.stroke}" stroke-width="0.8" />`);
+        parts.push(`<line x1="${stX}" y1="${stY + 15}" x2="${stX + stW}" y2="${stY + 15}" stroke="${col.stroke}" stroke-width="0.8" />`);
+        parts.push(`<text x="${stX + 10}" y="${stY + 11}" text-anchor="middle" font-size="8.5" font-weight="700" fill="${col.badge}">${apt.type}</text>`);
+        parts.push(`<text x="${stX + 10}" y="${stY + 25.5}" text-anchor="middle" font-size="8" font-weight="600" fill="#334155">${apt.number}</text>`);
+        parts.push(`<text x="${stX + 37}" y="${stY + 11}" text-anchor="middle" font-size="7.8" fill="#475569">${fmtNum(apt.areaLiving)}</text>`);
+        parts.push(`<text x="${stX + 37}" y="${stY + 25.5}" text-anchor="middle" font-size="8" font-weight="700" fill="#0f172a">${fmtNum(apt.areaCoef)}</text>`);
+        parts.push(`</g>`);
+      }
+
+      parts.push(`</g>`);
+    });
+
+    // 6. Monolithic RC Pylons (пилоны 200x600 along structural grid)
+    if (state.layers.axes) {
+      const numSteps = Math.round(variant.length / MODULE);
+      const pylonYs = [0, DEPTH_TOP, DEPTH_TOP + DEPTH_CORR, TOTAL_DEPTH];
+      for (let i = 0; i <= numSteps; i++) {
+        const xm = Math.min(variant.length, round2(i * MODULE));
+        pylonYs.forEach(ym => {
+          const px = sx(xm) - 3;
+          const py = sy(ym) - 3;
+          parts.push(`<rect x="${px}" y="${py}" width="6" height="6" fill="url(#hatchConcrete)" stroke="#0f172a" stroke-width="0.8" />`);
+        });
+      }
+    }
+
+    parts.push(`</svg>`);
+    return parts.join('\n');
+  }
+
+  function renderRoomFurniture(r, rx, ry, rw, rh, side) {
+    const stroke = '#94a3b8';
+    const fill = '#ffffff';
+    if (r.kind === 'room' && rw > 42 && rh > 42) {
+      // Bed outline
+      const bw = Math.min(34, rw * 0.45);
+      const bh = Math.min(26, rh * 0.34);
+      const bx = rx + 6;
+      const by = side === 'top' ? (ry + 8) : (ry + rh - bh - 8);
+      return `
+        <rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="2" fill="${fill}" stroke="${stroke}" stroke-width="0.9" opacity="0.75" />
+        <rect x="${bx + 3}" y="${by + 3}" width="8" height="${bh - 6}" rx="1.5" fill="none" stroke="${stroke}" stroke-width="0.8" opacity="0.75" />
+      `;
+    }
+    if (r.kind === 'kitchen' && rw > 40 && rh > 40) {
+      // Kitchen counter + dining table circle
+      const kw = rw - 10;
+      const ky = side === 'top' ? (ry + rh - 14) : (ry + 4);
+      return `
+        <rect x="${rx + 5}" y="${ky}" width="${kw}" height="10" fill="${fill}" stroke="${stroke}" stroke-width="0.9" opacity="0.8" />
+        <circle cx="${rx + rw * 0.35}" cy="${ry + rh * 0.5}" r="8" fill="none" stroke="${stroke}" stroke-width="0.8" opacity="0.7" />
+      `;
+    }
+    if (r.kind === 'bath' && rw > 26 && rh > 26) {
+      // Bathtub outline
+      return `<rect x="${rx + rw - 16}" y="${ry + 4}" width="12" height="${Math.min(28, rh - 8)}" rx="3" fill="${fill}" stroke="${stroke}" stroke-width="0.9" opacity="0.8" />`;
+    }
+    return '';
+  }
+
+  // =========================================================
+  // 6. UI RENDERING
+  // =========================================================
+  function renderAll() {
+    const variant = state.variants[state.activeVariantIdx];
+    if (!variant) return;
+
+    // 1. Preset buttons styling
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      const active = btn.dataset.preset === state.preset;
+      btn.className = `preset-btn px-2.5 py-2 rounded-lg border text-xs font-semibold text-center transition ${
+        active
+          ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-sm'
+          : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+      }`;
+    });
+
+    // 2. Style buttons
+    document.querySelectorAll('.style-btn').forEach(btn => {
+      const active = btn.dataset.style === state.style;
+      btn.className = `style-btn py-1.5 px-2 rounded-lg border text-xs font-medium transition ${
+        active
+          ? 'bg-slate-900 border-slate-900 text-white'
+          : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+      }`;
+    });
+
+    // 3. Variant selector pills
+    const tabsEl = document.getElementById('variantTabs');
+    tabsEl.innerHTML = state.variants.map((v, idx) => {
+      const active = idx === state.activeVariantIdx;
+      return `
+        <button data-vidx="${idx}" class="variant-pill px-3 py-1.5 rounded-lg text-xs font-semibold border transition flex items-center gap-1.5 ${
+          active
+            ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+        }">
+          <span>${v.label}</span>
+          <span class="text-[10px] px-1.5 py-0.2 rounded ${active ? 'bg-slate-700 text-emerald-300' : 'bg-emerald-50 text-emerald-700'}">КЭП ${v.metrics.efficiency}%</span>
+        </button>
+      `;
+    }).join('');
+
+    tabsEl.querySelectorAll('.variant-pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.activeVariantIdx = Number(btn.dataset.vidx);
+        state.selectedAptId = null;
+        renderAll();
+      });
+    });
+
+    // 4. KPIs
+    const m = variant.metrics;
+    document.getElementById('kpiFloorArea').textContent = `${fmtNum(m.floorAreaSP)} м²`;
+    document.getElementById('kpiDimensions').textContent = `${fmtNum(variant.length)} × 14,00 м`;
+    document.getElementById('kpiSellableArea').textContent = `${fmtNum(m.sellableCoef)} м²`;
+    document.getElementById('kpiLivingArea').textContent = `Жилая: ${fmtNum(m.livingTotal)} м²`;
+    document.getElementById('kpiMopArea').textContent = `${fmtNum(m.mopTotal)} м²`;
+    const mopPct = m.floorAreaSP > 0 ? round2((m.mopTotal / m.floorAreaSP) * 100) : 0;
+    document.getElementById('kpiMopShare').textContent = `${fmtNum(mopPct)}% от этажа`;
+    document.getElementById('kpiEfficiency').textContent = `${fmtNum(m.efficiency)}%`;
+    document.getElementById('kpiUnitCount').textContent = `${variant.apartments.length} шт.`;
+    document.getElementById('kpiUnitBreakdown').textContent = `1К: ${variant.counts['1К']} · 2К: ${variant.counts['2К']} · 3К: ${variant.counts['3К']}`;
+
+    document.getElementById('planTitle').textContent = `${variant.label} — ${variant.strategyName} (${fmtNum(variant.length)} × 14,0 м)`;
+
+    // 5. Render SVG
+    const svgInner = document.getElementById('svgInner');
+    svgInner.innerHTML = renderPlanSVG(variant);
+    svgInner.style.transform = 'none';
+    document.getElementById('zoomLabel').textContent = `${Math.round(state.zoom * 100)}%`;
+
+    // Attach apartment click listeners
+    svgInner.querySelectorAll('.apt-group').forEach(g => {
+      g.addEventListener('click', () => {
+        const id = g.dataset.aptId;
+        state.selectedAptId = (state.selectedAptId === id) ? null : id;
+        renderAll();
+      });
+    });
+
+    // 6. Inspector
+    renderInspector(variant);
+
+    // 7. Explication & Comparison
+    renderExplicationTable(variant);
+    renderComparisonTable();
+
+    // 8. Bottom Tabs styling
+    document.querySelectorAll('.bottom-tab').forEach(tab => {
+      const active = tab.dataset.tab === state.activeTab;
+      tab.className = `bottom-tab px-3.5 py-2.5 text-xs font-semibold border-b-2 transition ${
+        active ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-800'
+      }`;
+    });
+    document.getElementById('panelExplication').classList.toggle('hidden', state.activeTab !== 'explication');
+    document.getElementById('panelComparison').classList.toggle('hidden', state.activeTab !== 'comparison');
+    document.getElementById('filterAptType').classList.toggle('hidden', state.activeTab !== 'explication');
+  }
+
+  function renderInspector(variant) {
+    const box = document.getElementById('inspectorBox');
+    const content = document.getElementById('inspectorContent');
+    if (!state.selectedAptId) {
+      box.classList.add('hidden');
+      return;
+    }
+    const apt = variant.apartments.find(a => a.id === state.selectedAptId);
+    if (!apt) {
+      box.classList.add('hidden');
+      return;
+    }
+    box.classList.remove('hidden');
+    const canSplit = apt.w >= 8.4 && apt.side !== 'left' && apt.side !== 'right';
+    content.innerHTML = `
+      <div class="flex items-center justify-between">
+        <span class="font-bold text-slate-900">Квартира № ${apt.number} (${apt.type})</span>
+        <span class="px-1.5 py-0.5 rounded font-semibold ${COLORS[apt.type].bg}">${fmtNum(apt.areaCoef)} м²</span>
+      </div>
+      <div class="grid grid-cols-2 gap-1 text-[11px] text-slate-600">
+        <div>Жилая: <strong class="text-slate-800">${fmtNum(apt.areaLiving)} м²</strong></div>
+        <div>Полная: <strong class="text-slate-800">${fmtNum(apt.areaFull)} м²</strong></div>
+        <div>Ширина: <strong class="text-slate-800">${fmtNum(apt.w)} м</strong></div>
+        <div>Глубина: <strong class="text-slate-800">${fmtNum(apt.h)} м</strong></div>
+      </div>
+      <div class="border-t border-blue-100 pt-2 space-y-1">
+        ${apt.rooms.map(r => `
+          <div class="flex justify-between text-[11px]">
+            <span class="text-slate-600">${r.code} ${r.name}</span>
+            <span class="font-medium text-slate-800 tabular-nums">${fmtNum(r.areaCoef)} м²</span>
+          </div>
+        `).join('')}
+      </div>
+      ${canSplit ? `
+        <button id="btnSplitApt" class="w-full mt-2 py-1.5 px-2.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition">
+          Разделить на две 1К
+        </button>
+      ` : ''}
+    `;
+    const btnSplit = document.getElementById('btnSplitApt');
+    if (btnSplit) btnSplit.addEventListener('click', splitSelectedApartment);
+  }
+
+  function renderExplicationTable(variant) {
+    const body = document.getElementById('explicationBody');
+    const foot = document.getElementById('explicationFoot');
+    const filter = state.filterType;
+    const rows = [];
+
+    let sumCoef = 0;
+    let sumFull = 0;
+
+    if (filter === 'ALL' || filter !== 'МОП') {
+      variant.apartments.forEach(apt => {
+        if (filter !== 'ALL' && apt.type !== filter) return;
+        const isSel = state.selectedAptId === apt.id;
+        rows.push(`
+          <tr data-apt-row="${apt.id}" class="apt-ex-row cursor-pointer ${isSel ? 'bg-blue-50' : 'bg-slate-50/70 hover:bg-slate-100/70'}">
+            <td colspan="3" class="py-1.5 px-3 font-bold text-slate-800">
+              Квартира № ${apt.number}
+              <span class="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-semibold ${COLORS[apt.type].bg}">${apt.type}</span>
+              <span class="ml-2 text-[10px] font-normal text-slate-500">Жилая: ${fmtNum(apt.areaLiving)} м²</span>
+            </td>
+            <td class="py-1.5 px-3 text-right font-bold text-slate-900 tabular-nums">${fmtNum(apt.areaCoef)}</td>
+            <td class="py-1.5 px-3 text-right font-bold text-slate-900 tabular-nums">${fmtNum(apt.areaFull)}</td>
+          </tr>
+        `);
+        apt.rooms.forEach(r => {
+          rows.push(`
+            <tr data-apt-row="${apt.id}" class="apt-ex-row cursor-pointer ${isSel ? 'bg-blue-50/40' : 'hover:bg-slate-50'}">
+              <td class="py-1.5 px-3 text-slate-500 tabular-nums">${r.code}</td>
+              <td class="py-1.5 px-3 text-slate-700">${r.name}</td>
+              <td class="py-1.5 px-3 text-slate-400">${r.isLiving ? 'Жилое' : (r.kind === 'balcony' ? 'Летнее (к=0,3)' : 'Подсобное')}</td>
+              <td class="py-1.5 px-3 text-right text-slate-800 tabular-nums">${fmtNum(r.areaCoef)}</td>
+              <td class="py-1.5 px-3 text-right text-slate-600 tabular-nums">${fmtNum(r.area)}</td>
+            </tr>
+          `);
+        });
+        sumCoef += apt.areaCoef;
+        sumFull += apt.areaFull;
+      });
+    }
+
+    if (filter === 'ALL' || filter === 'МОП') {
+      rows.push(`
+        <tr class="bg-slate-100/80">
+          <td colspan="3" class="py-1.5 px-3 font-bold text-slate-700">МОП (места общего пользования)</td>
+          <td class="py-1.5 px-3 text-right font-bold text-slate-800 tabular-nums">${fmtNum(variant.metrics.mopTotal)}</td>
+          <td class="py-1.5 px-3 text-right font-bold text-slate-800 tabular-nums">${fmtNum(variant.metrics.mopTotal)}</td>
+        </tr>
+      `);
+      variant.mopRooms.forEach(r => {
+        rows.push(`
+          <tr class="hover:bg-slate-50">
+            <td class="py-1.5 px-3 text-slate-500">${r.code}</td>
+            <td class="py-1.5 px-3 text-slate-700">${r.name}</td>
+            <td class="py-1.5 px-3 text-slate-400">МОП</td>
+            <td class="py-1.5 px-3 text-right text-slate-800 tabular-nums">${fmtNum(r.areaCoef)}</td>
+            <td class="py-1.5 px-3 text-right text-slate-600 tabular-nums">${fmtNum(r.area)}</td>
+          </tr>
+        `);
+      });
+      sumCoef += variant.metrics.mopTotal;
+      sumFull += variant.metrics.mopTotal;
+    }
+
+    body.innerHTML = rows.join('');
+    foot.innerHTML = `
+      <tr>
+        <td colspan="3" class="py-2 px-3">ИТОГО ПО ВЫБОРКЕ (Общая площадь этажа по СП: ${fmtNum(variant.metrics.floorAreaSP)} м²)</td>
+        <td class="py-2 px-3 text-right tabular-nums">${fmtNum(sumCoef)} м²</td>
+        <td class="py-2 px-3 text-right tabular-nums">${fmtNum(sumFull)} м²</td>
+      </tr>
+    `;
+
+    body.querySelectorAll('.apt-ex-row').forEach(tr => {
+      tr.addEventListener('click', () => {
+        const id = tr.dataset.aptRow;
+        state.selectedAptId = (state.selectedAptId === id) ? null : id;
+        renderAll();
+      });
+    });
+  }
+
+  function renderComparisonTable() {
+    const body = document.getElementById('comparisonBody');
+    body.innerHTML = state.variants.map((v, idx) => {
+      const active = idx === state.activeVariantIdx;
+      return `
+        <tr class="${active ? 'bg-blue-50/70' : 'hover:bg-slate-50'}">
+          <td class="py-2.5 px-3 font-semibold text-slate-900">
+            ${v.label}
+            <span class="block text-[10px] font-normal text-slate-500">${v.strategyName}</span>
+          </td>
+          <td class="py-2.5 px-3 text-slate-700">1К: <strong>${v.counts['1К']}</strong> · 2К: <strong>${v.counts['2К']}</strong> · 3К: <strong>${v.counts['3К']}</strong></td>
+          <td class="py-2.5 px-3 text-right font-semibold tabular-nums">${v.apartments.length}</td>
+          <td class="py-2.5 px-3 text-right font-semibold text-blue-700 tabular-nums">${fmtNum(v.metrics.sellableCoef)}</td>
+          <td class="py-2.5 px-3 text-right text-slate-600 tabular-nums">${fmtNum(v.metrics.mopTotal)}</td>
+          <td class="py-2.5 px-3 text-right font-bold text-emerald-700 tabular-nums">${fmtNum(v.metrics.efficiency)}%</td>
+          <td class="py-2.5 px-3 text-right tabular-nums">
+            <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold ${v.matchScore >= 85 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">${v.matchScore}%</span>
+          </td>
+          <td class="py-2.5 px-3 text-right">
+            <button data-pick-v="${idx}" class="pick-v-btn px-2.5 py-1 rounded-md text-xs font-semibold transition ${
+              active ? 'bg-blue-600 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+            }">${active ? 'Выбран' : 'Открыть'}</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    body.querySelectorAll('.pick-v-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.activeVariantIdx = Number(btn.dataset.pickV);
+        state.selectedAptId = null;
+        renderAll();
+      });
+    });
+  }
+
+  // =========================================================
+  // 7. EXPORTS & TOAST
+  // =========================================================
+  function showToast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.remove('opacity-0');
+    clearTimeout(window._toastTimer);
+    window._toastTimer = setTimeout(() => el.classList.add('opacity-0'), 2600);
+  }
+
+  function exportSVG() {
+    const svgEl = document.getElementById('floorplanSvg');
+    if (!svgEl) return;
+    const data = new XMLSerializer().serializeToString(svgEl);
+    const blob = new Blob([data], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `plan_section_${state.length}m_v${state.activeVariantIdx + 1}.svg`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('Векторный план (SVG) сохранён');
+  }
+
+  function exportCSV() {
+    const variant = state.variants[state.activeVariantIdx];
+    if (!variant) return;
+    const lines = ['Квартира;Тип;Номер помещения;Наименование;Площадь с коэф. м2;Площадь м2'];
+    variant.apartments.forEach(apt => {
+      apt.rooms.forEach(r => {
+        lines.push(`Кв. ${apt.number};${apt.type};${r.code};${r.name};${fmtNum(r.areaCoef)};${fmtNum(r.area)}`);
+      });
+    });
+    variant.mopRooms.forEach(r => {
+      lines.push(`МОП;МОП;${r.code};${r.name};${fmtNum(r.areaCoef)};${fmtNum(r.area)}`);
+    });
+    lines.push(`ИТОГО;;;Продаваемая с коэф.;${fmtNum(variant.metrics.sellableCoef)};${fmtNum(variant.metrics.sellableFull)}`);
+    lines.push(`ИТОГО;;;Общая площадь этажа по СП;${fmtNum(variant.metrics.floorAreaSP)};${fmtNum(variant.metrics.floorAreaSP)}`);
+
+    const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `explication_${state.length}m_v${state.activeVariantIdx + 1}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('Экспликация (CSV для Excel) сохранена');
+  }
+
+  // =========================================================
+  // 8. EVENT BINDINGS & PRESETS
+  // =========================================================
+  function syncInputsFromState() {
+    document.getElementById('inputLength').value = state.length;
+    const steps = round2(state.length / MODULE);
+    document.getElementById('valLength').textContent = `${fmtNum(state.length)} м (${steps} шагов)`;
+    document.getElementById('selectCorePos').value = state.corePos;
+    document.getElementById('selectCoreSide').value = state.coreSide;
+    document.getElementById('toggleBalconies').checked = state.balconies;
+    document.getElementById('inputMix1').value = state.mix1;
+    document.getElementById('inputMix2').value = state.mix2;
+    document.getElementById('inputMix3').value = state.mix3;
+    document.getElementById('valMix1').textContent = `${state.mix1}%`;
+    document.getElementById('valMix2').textContent = `${state.mix2}%`;
+    document.getElementById('valMix3').textContent = `${state.mix3}%`;
+    const sum = state.mix1 + state.mix2 + state.mix3;
+    const badge = document.getElementById('mixSumBadge');
+    badge.textContent = `${sum}%`;
+    badge.className = `text-[11px] font-semibold px-1.5 py-0.5 rounded ${
+      sum === 100 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+    }`;
+  }
+
+  function applyPreset(name) {
+    state.preset = name;
+    if (name === 'C1') {
+      state.length = 22.4; // Closest modular match to C1 (22.8m)
+      state.corePos = 'center';
+      state.coreSide = 'top';
+      state.balconies = true;
+      state.mix1 = 25;
+      state.mix2 = 50;
+      state.mix3 = 25;
+    } else if (name === 'C5') {
+      state.length = 41.6; // Exact match to C5 (41.6m = 13 * 3.2m)
+      state.corePos = 'center';
+      state.coreSide = 'bottom';
+      state.balconies = false;
+      state.mix1 = 60;
+      state.mix2 = 30;
+      state.mix3 = 10;
+    }
+    syncInputsFromState();
+    generateAllVariants();
+    state.activeVariantIdx = 0;
+    renderAll();
+  }
+
+  function bindEvents() {
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => applyPreset(btn.dataset.preset));
+    });
+
+    document.getElementById('inputLength').addEventListener('input', (e) => {
+      state.preset = 'CUSTOM';
+      state.length = parseFloat(e.target.value);
+      syncInputsFromState();
+      generateAllVariants();
+      renderAll();
+    });
+
+    document.getElementById('selectCorePos').addEventListener('change', (e) => {
+      state.preset = 'CUSTOM';
+      state.corePos = e.target.value;
+      generateAllVariants();
+      renderAll();
+    });
+
+    document.getElementById('selectCoreSide').addEventListener('change', (e) => {
+      state.preset = 'CUSTOM';
+      state.coreSide = e.target.value;
+      generateAllVariants();
+      renderAll();
+    });
+
+    document.getElementById('toggleBalconies').addEventListener('change', (e) => {
+      state.balconies = e.target.checked;
+      generateAllVariants();
+      renderAll();
+    });
+
+    ['inputMix1', 'inputMix2', 'inputMix3'].forEach((id, idx) => {
+      document.getElementById(id).addEventListener('input', (e) => {
+        const val = parseInt(e.target.value, 10);
+        if (idx === 0) state.mix1 = val;
+        if (idx === 1) state.mix2 = val;
+        if (idx === 2) state.mix3 = val;
+        state.preset = 'CUSTOM';
+        syncInputsFromState();
+        generateAllVariants();
+        renderAll();
+      });
+    });
+
+    document.querySelectorAll('.mix-quick-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const m = btn.dataset.mix;
+        if (m === 'invest') { state.mix1 = 75; state.mix2 = 25; state.mix3 = 0; }
+        if (m === 'balanced') { state.mix1 = 50; state.mix2 = 35; state.mix3 = 15; }
+        if (m === 'family') { state.mix1 = 20; state.mix2 = 45; state.mix3 = 35; }
+        state.preset = 'CUSTOM';
+        syncInputsFromState();
+        generateAllVariants();
+        renderAll();
+      });
+    });
+
+    document.querySelectorAll('.style-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.style = btn.dataset.style;
+        renderAll();
+      });
+    });
+
+    const layerMap = {
+      layerAxes: 'axes',
+      layerFurniture: 'furniture',
+      layerLabels: 'labels',
+      layerStamps: 'stamps'
+    };
+    Object.keys(layerMap).forEach(id => {
+      document.getElementById(id).addEventListener('change', (e) => {
+        state.layers[layerMap[id]] = e.target.checked;
+        renderAll();
+      });
+    });
+
+    document.getElementById('btnGenerate').addEventListener('click', () => {
+      state.seed += 1;
+      generateAllVariants();
+      state.activeVariantIdx = 0;
+      renderAll();
+      showToast('Сгенерировано 6 новых вариантов планировки');
+    });
+
+    document.getElementById('btnZoomIn').addEventListener('click', () => {
+      state.zoom = Math.min(1.8, round2(state.zoom + 0.15));
+      renderAll();
+    });
+    document.getElementById('btnZoomOut').addEventListener('click', () => {
+      state.zoom = Math.max(0.55, round2(state.zoom - 0.15));
+      renderAll();
+    });
+    document.getElementById('btnZoomReset').addEventListener('click', () => {
+      state.zoom = 1.0;
+      renderAll();
+    });
+
+    document.querySelectorAll('.bottom-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        state.activeTab = tab.dataset.tab;
+        renderAll();
+      });
+    });
+
+    document.getElementById('filterAptType').addEventListener('change', (e) => {
+      state.filterType = e.target.value;
+      renderAll();
+    });
+
+    document.getElementById('btnCloseInspector').addEventListener('click', () => {
+      state.selectedAptId = null;
+      renderAll();
+    });
+
+    document.getElementById('btnExportSvg').addEventListener('click', exportSVG);
+    document.getElementById('btnExportCsv').addEventListener('click', exportCSV);
+    document.getElementById('btnPrint').addEventListener('click', () => window.print());
+  }
+
+  // Init
+  bindEvents();
+  applyPreset('C5');
+  if (window.lucide && typeof window.lucide.createIcons === 'function') {
+    window.lucide.createIcons();
+  }
+})();
+</script>
+</body>
+</html>
