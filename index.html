@@ -73,6 +73,71 @@
       stroke-width: 3;
       stroke-dasharray: none;
     }
+    /* Resizable splitters */
+    .splitter-v {
+      width: 7px;
+      cursor: col-resize;
+      background: #f1f5f9;
+      border-right: 1px solid #e2e8f0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.15s ease;
+      position: relative;
+      z-index: 20;
+      touch-action: none;
+    }
+    @media (min-width: 1024px) {
+      .splitter-v { display: flex; }
+    }
+    .splitter-v:hover, .splitter-v.dragging {
+      background: #dbeafe;
+      border-right-color: #3b82f6;
+    }
+    .splitter-v::after {
+      content: '';
+      width: 3px;
+      height: 36px;
+      border-radius: 999px;
+      background: #94a3b8;
+    }
+    .splitter-v:hover::after, .splitter-v.dragging::after {
+      background: #2563eb;
+    }
+
+    .splitter-h {
+      height: 10px;
+      cursor: row-resize;
+      background: #f8fafc;
+      border-top: 1px solid #e2e8f0;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.15s ease;
+      touch-action: none;
+    }
+    .splitter-h:hover, .splitter-h.dragging {
+      background: #dbeafe;
+      border-color: #3b82f6;
+    }
+    .splitter-h::after {
+      content: '';
+      width: 44px;
+      height: 3px;
+      border-radius: 999px;
+      background: #94a3b8;
+    }
+    .splitter-h:hover::after, .splitter-h.dragging::after {
+      background: #2563eb;
+    }
+    body.is-resizing {
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
     /* Compact scrollbar */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -97,7 +162,7 @@
       </div>
       <div>
         <h1 class="text-sm sm:text-base font-bold text-slate-900 leading-tight">Генератор планировок ЖК · Секция 14 м</h1>
-        <p class="text-xs text-slate-500">Глубина корпуса 6,1 + 1,8 + 6,1 м · Монолитный каркас + газобетон D500</p>
+        <p id="headerSubtitle" class="text-xs text-slate-500">Ширина (глубина) корпуса 14,0 м (6,1 + 1,8 + 6,1 м) · Монолитный каркас + газобетон D500</p>
       </div>
     </div>
 
@@ -125,7 +190,7 @@
   <div class="flex-1 flex flex-col lg:flex-row min-h-0">
 
     <!-- Left Controls Sidebar -->
-    <aside class="w-full lg:w-80 xl:w-88 bg-white border-b lg:border-b-0 lg:border-r border-slate-200 p-4 flex flex-col gap-5 lg:overflow-y-auto shrink-0">
+    <aside id="leftSidebar" class="w-full lg:w-80 bg-white border-b lg:border-b-0 border-slate-200 p-4 flex flex-col gap-5 lg:overflow-y-auto shrink-0">
 
       <!-- Presets -->
       <section>
@@ -162,6 +227,19 @@
             <span>19,2 м</span>
             <span>32,0 м</span>
             <span>51,2 м</span>
+          </div>
+        </div>
+
+        <div>
+          <div class="flex justify-between text-xs mb-1">
+            <span class="font-medium text-slate-700">Ширина (глубина) секции</span>
+            <span id="valDepth" class="font-bold text-slate-900 tabular-nums">14,0 м</span>
+          </div>
+          <input id="inputDepth" type="range" min="11.0" max="18.0" step="0.2" value="14.0" />
+          <div class="flex justify-between text-[10px] text-slate-400 mt-0.5">
+            <span>11,0 м</span>
+            <span id="valDepthSplit" class="text-slate-500 font-medium">6,1 + 1,8 + 6,1 м</span>
+            <span>18,0 м</span>
           </div>
         </div>
 
@@ -276,6 +354,9 @@
 
     </aside>
 
+    <!-- Vertical Resizer (Sidebar <-> Workspace) -->
+    <div id="splitterV" class="splitter-v no-print" title="Потяните, чтобы изменить ширину панели (двойной клик — сброс)"></div>
+
     <!-- Main Right Area -->
     <main class="flex-1 flex flex-col min-w-0 p-4 gap-4 lg:overflow-y-auto">
 
@@ -342,13 +423,15 @@
           </div>
         </div>
 
-        <div id="svgContainer" class="cad-canvas-bg relative w-full overflow-auto" style="min-height: 360px; max-height: 520px;">
+        <div id="svgContainer" class="cad-canvas-bg relative w-full overflow-auto" style="height: 440px; min-height: 220px;">
           <div id="svgInner" class="inline-block min-w-full p-4 transition-transform origin-top-left"></div>
         </div>
+        <!-- Horizontal Resizer (Plan <-> Explication) -->
+        <div id="splitterH" class="splitter-h no-print" title="Потяните вверх/вниз, чтобы изменить высоту области чертежа (двойной клик — сброс)"></div>
       </div>
 
       <!-- Bottom Tabs: Explication & Variants Comparison -->
-      <div id="explicationSection" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+      <div id="explicationSection" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex-1 flex flex-col min-h-[220px]">
         <div class="border-b border-slate-200 px-4 flex items-center justify-between gap-2 bg-slate-50/70">
           <div class="flex items-center gap-1">
             <button data-tab="explication" class="bottom-tab px-3.5 py-2.5 text-xs font-semibold border-b-2 transition">
@@ -370,7 +453,7 @@
         </div>
 
         <!-- Explication Table -->
-        <div id="panelExplication" class="overflow-x-auto max-h-96 overflow-y-auto">
+        <div id="panelExplication" class="overflow-x-auto overflow-y-auto" style="height: 340px; min-height: 160px;">
           <table class="w-full text-left border-collapse text-xs">
             <thead class="bg-slate-50 sticky top-0 z-10 border-b border-slate-200 text-slate-600">
               <tr>
@@ -387,7 +470,7 @@
         </div>
 
         <!-- Variants Comparison Table -->
-        <div id="panelComparison" class="overflow-x-auto hidden">
+        <div id="panelComparison" class="overflow-x-auto overflow-y-auto hidden" style="height: 340px; min-height: 160px;">
           <table class="w-full text-left border-collapse text-xs">
             <thead class="bg-slate-50 border-b border-slate-200 text-slate-600">
               <tr>
@@ -404,6 +487,7 @@
             <tbody id="comparisonBody" class="divide-y divide-slate-100"></tbody>
           </table>
         </div>
+        <div id="splitterTableH" class="splitter-h no-print" title="Потяните вверх/вниз, чтобы изменить высоту таблицы экспликации (двойной клик — сброс)"></div>
       </div>
 
     </main>
@@ -417,10 +501,13 @@
   // =========================================================
   // 1. CONSTANTS & ARCHITECTURAL PARAMETERS (C1 / C5 MODEL)
   // =========================================================
-  const DEPTH_TOP = 6.1;      // Оси В–Г (м)
   const DEPTH_CORR = 1.8;     // Оси Б–В (коридор, м)
-  const DEPTH_BOT = 6.1;      // Оси А–Б (м)
-  const TOTAL_DEPTH = 14.0;   // Полная глубина корпуса (м)
+  function getDepths() {
+    const total = round2(state.depth);
+    const top = round2((total - DEPTH_CORR) / 2);
+    const bot = round2(total - DEPTH_CORR - top);
+    return { total, top, corr: DEPTH_CORR, bot };
+  }
   const MODULE = 3.2;         // Базовый конструктивный шаг (как в С5, м)
   const WALL_EXT = 0.30;      // Наружная стена (газобетон + утеплитель, м)
   const WALL_INT = 0.20;      // Межквартирная стена (м)
@@ -441,6 +528,7 @@
   const state = {
     preset: 'C5',
     length: 41.6,
+    depth: 14.0,
     corePos: 'center',   // 'left' | 'center' | 'right'
     coreSide: 'bottom',  // 'bottom' | 'top'
     balconies: false,
@@ -567,6 +655,7 @@
 
   function buildFloorPlanVariant(cfg) {
     const { length, coreX, coreWidth, coreSide, balconies, targetMix, endWrap, rng } = cfg;
+    const { total: totalDepth, top: depthTop, corr: depthCorr, bot: depthBot } = getDepths();
     const apartments = [];
     let aptCounter = 1;
 
@@ -648,12 +737,13 @@
     });
 
     // Core (ЛЛУ) & Corridor (МОП) geometry
-    const coreY = coreSide === 'top' ? 0 : (DEPTH_TOP + DEPTH_CORR);
+    const coreH = coreSide === 'top' ? depthTop : depthBot;
+    const coreY = coreSide === 'top' ? 0 : (depthTop + depthCorr);
     const stairW = round2(coreWidth * 0.56);
     const hallW = round2(coreWidth - stairW);
-    const stairArea = round2((stairW - 0.3) * (DEPTH_TOP - 0.4));
-    const liftHallArea = round2((hallW - 0.2) * (DEPTH_TOP - 0.4) * 0.68); // excluding lift shaft
-    const corridorArea = round2(Math.max(6, (corrEnd - corrStart) - 4.0) * DEPTH_CORR);
+    const stairArea = round2((stairW - 0.3) * Math.max(2.5, coreH - 0.4));
+    const liftHallArea = round2((hallW - 0.2) * Math.max(2.5, coreH - 0.4) * 0.68); // excluding lift shaft
+    const corridorArea = round2(Math.max(6, (corrEnd - corrStart) - 4.0) * depthCorr);
 
     const mopRooms = [
       { code: 'МОП.1', name: 'Коридор общий', area: corridorArea, areaCoef: corridorArea, isLiving: false },
@@ -675,7 +765,7 @@
     });
 
     const mopTotal = round2(mopRooms.reduce((s, r) => s + r.area, 0));
-    const floorAreaSP = round2(length * TOTAL_DEPTH);
+    const floorAreaSP = round2(length * totalDepth);
     const efficiency = floorAreaSP > 0 ? round2((sellableCoef / floorAreaSP) * 100) : 0;
 
     return {
@@ -683,8 +773,12 @@
       label: cfg.label,
       strategyName: cfg.strategyName,
       length,
-      core: { x: coreX, y: coreY, w: coreWidth, h: DEPTH_TOP, side: coreSide, stairW, hallW },
-      corridor: { x1: corrStart, x2: corrEnd, y: DEPTH_TOP, h: DEPTH_CORR },
+      depth: totalDepth,
+      depthTop,
+      depthCorr,
+      depthBot,
+      core: { x: coreX, y: coreY, w: coreWidth, h: coreH, side: coreSide, stairW, hallW },
+      corridor: { x1: corrStart, x2: corrEnd, y: depthTop, h: depthCorr },
       apartments,
       mopRooms,
       counts,
@@ -769,16 +863,17 @@
 
   // Create parametric rooms for a linear 1K, 2K, or 3K apartment (depth 6.1m)
   function createLinearApartment(type, x, w, side, balconies) {
-    const y = side === 'top' ? 0 : (DEPTH_TOP + DEPTH_CORR);
-    const h = DEPTH_TOP; // 6.1 m
+    const { top: depthTop, corr: depthCorr, bot: depthBot } = getDepths();
+    const y = side === 'top' ? 0 : (depthTop + depthCorr);
+    const h = side === 'top' ? depthTop : depthBot;
     const innerX = x + WALL_INT / 2;
     const innerW = w - WALL_INT;
-    const innerH = h - WALL_EXT - WALL_INT / 2; // ~5.7 m usable depth
+    const innerH = h - WALL_EXT - WALL_INT / 2;
     const isTop = side === 'top';
 
     // Corridor side is bottom for 'top' apartments, top for 'bottom' apartments
-    const corrZoneH = 2.05; // Прихожая + санузел depth along corridor
-    const facadeZoneH = round2(innerH - corrZoneH); // Комнаты + кухня along facade (~3.65m)
+    const corrZoneH = round2(Math.min(2.2, Math.max(1.65, innerH * 0.35)));
+    const facadeZoneH = round2(innerH - corrZoneH);
 
     const yFacade = isTop ? (y + WALL_EXT) : (y + WALL_INT / 2 + corrZoneH);
     const yCorr = isTop ? (y + WALL_EXT + facadeZoneH) : (y + WALL_INT / 2);
@@ -860,16 +955,17 @@
 
   // Create full-depth end-cap 3K apartment (like Apt 1.8 in C1 or 5.16 in C5)
   function createEndCap3K(index, x, w, endSide, balconies) {
+    const { total: totalDepth } = getDepths();
     const y = 0;
-    const h = TOTAL_DEPTH; // 14.0 m
+    const h = totalDepth;
     const innerX = endSide === 'left' ? (x + WALL_EXT) : (x + WALL_INT / 2);
     const innerW = w - WALL_EXT - WALL_INT / 2;
     const innerY = WALL_EXT;
-    const innerH = TOTAL_DEPTH - 2 * WALL_EXT; // 13.4 m
+    const innerH = round2(totalDepth - 2 * WALL_EXT);
 
-    const topH = 4.55;
-    const midH = 4.30;
-    const botH = round2(innerH - topH - midH); // 4.55
+    const topH = round2(innerH * 0.34);
+    const midH = round2(innerH * 0.32);
+    const botH = round2(innerH - topH - midH);
 
     const rooms = [];
     // Top: Room 1 + Kitchen-Living
@@ -1002,13 +1098,17 @@
   // =========================================================
   function renderPlanSVG(variant) {
     const SCALE = 26; // px per meter
-    const PAD_L = 78;
+    const PAD_L = 86;
     const PAD_R = 46;
     const PAD_T = 76;
     const PAD_B = 76;
+    const totalDepth = variant.depth;
+    const depthTop = variant.depthTop;
+    const depthCorr = variant.depthCorr;
+    const depthBot = variant.depthBot;
 
     const svgW = Math.round(variant.length * SCALE + PAD_L + PAD_R);
-    const svgH = Math.round(TOTAL_DEPTH * SCALE + PAD_T + PAD_B);
+    const svgH = Math.round(totalDepth * SCALE + PAD_T + PAD_B);
 
     const sx = (m) => round2(PAD_L + m * SCALE);
     const sy = (m) => round2(PAD_T + m * SCALE);
@@ -1037,49 +1137,57 @@
     if (state.layers.axes) {
       const yAxes = [
         { label: 'Г', y: 0 },
-        { label: 'В', y: DEPTH_TOP },
-        { label: 'Б', y: DEPTH_TOP + DEPTH_CORR },
-        { label: 'А', y: TOTAL_DEPTH }
+        { label: 'В', y: depthTop },
+        { label: 'Б', y: depthTop + depthCorr },
+        { label: 'А', y: totalDepth }
       ];
       yAxes.forEach(ax => {
         const py = sy(ax.y);
-        parts.push(`<line x1="${PAD_L - 44}" y1="${py}" x2="${sx(variant.length) + 18}" y2="${py}" stroke="#cbd5e1" stroke-width="0.8" stroke-dasharray="6,3,1.5,3" />`);
-        parts.push(`<circle cx="${PAD_L - 54}" cy="${py}" r="10" fill="#ffffff" stroke="#64748b" stroke-width="1" />`);
-        parts.push(`<text x="${PAD_L - 54}" y="${py + 3.5}" text-anchor="middle" font-size="10" font-weight="600" fill="#334155">${ax.label}</text>`);
+        parts.push(`<line x1="${PAD_L - 52}" y1="${py}" x2="${sx(variant.length) + 18}" y2="${py}" stroke="#cbd5e1" stroke-width="0.8" stroke-dasharray="6,3,1.5,3" />`);
+        parts.push(`<circle cx="${PAD_L - 62}" cy="${py}" r="10" fill="#ffffff" stroke="#64748b" stroke-width="1" />`);
+        parts.push(`<text x="${PAD_L - 62}" y="${py + 3.5}" text-anchor="middle" font-size="10" font-weight="600" fill="#334155">${ax.label}</text>`);
       });
 
-      // Vertical dimension chain on left (6100, 1800, 6100 & 14000)
-      const dx1 = PAD_L - 22;
-      parts.push(`<line x1="${dx1}" y1="${sy(0)}" x2="${dx1}" y2="${sy(TOTAL_DEPTH)}" stroke="#94a3b8" stroke-width="0.9" />`);
+      // Vertical dimension chain on left (depthTop, 1800, depthBot & totalDepth)
+      const dx1 = PAD_L - 18;
+      const dx2 = PAD_L - 36;
+      parts.push(`<line x1="${dx1}" y1="${sy(0)}" x2="${dx1}" y2="${sy(totalDepth)}" stroke="#94a3b8" stroke-width="0.9" />`);
       [
-        { y1: 0, y2: DEPTH_TOP, txt: '6 100' },
-        { y1: DEPTH_TOP, y2: DEPTH_TOP + DEPTH_CORR, txt: '1 800' },
-        { y1: DEPTH_TOP + DEPTH_CORR, y2: TOTAL_DEPTH, txt: '6 100' }
+        { y1: 0, y2: depthTop, txt: Math.round(depthTop * 1000).toLocaleString('ru-RU') },
+        { y1: depthTop, y2: depthTop + depthCorr, txt: Math.round(depthCorr * 1000).toLocaleString('ru-RU') },
+        { y1: depthTop + depthCorr, y2: totalDepth, txt: Math.round(depthBot * 1000).toLocaleString('ru-RU') }
       ].forEach(d => {
         const my = (sy(d.y1) + sy(d.y2)) / 2;
         parts.push(`<line x1="${dx1 - 3}" y1="${sy(d.y1)}" x2="${dx1 + 3}" y2="${sy(d.y1)}" stroke="#64748b" stroke-width="1" />`);
-        parts.push(`<text x="${dx1 - 5}" y="${my + 3}" text-anchor="end" font-size="8.5" fill="#64748b" transform="rotate(-90 ${dx1 - 5} ${my})">${d.txt}</text>`);
+        parts.push(`<text x="${dx1 - 4}" y="${my + 3}" text-anchor="middle" font-size="8.2" fill="#64748b" transform="rotate(-90 ${dx1 - 4} ${my})">${d.txt}</text>`);
       });
-      parts.push(`<line x1="${dx1 - 3}" y1="${sy(TOTAL_DEPTH)}" x2="${dx1 + 3}" y2="${sy(TOTAL_DEPTH)}" stroke="#64748b" stroke-width="1" />`);
+      parts.push(`<line x1="${dx1 - 3}" y1="${sy(totalDepth)}" x2="${dx1 + 3}" y2="${sy(totalDepth)}" stroke="#64748b" stroke-width="1" />`);
+
+      // Outer total depth dimension line
+      const midTotalY = (sy(0) + sy(totalDepth)) / 2;
+      parts.push(`<line x1="${dx2}" y1="${sy(0)}" x2="${dx2}" y2="${sy(totalDepth)}" stroke="#64748b" stroke-width="1" />`);
+      parts.push(`<line x1="${dx2 - 3}" y1="${sy(0)}" x2="${dx2 + 3}" y2="${sy(0)}" stroke="#64748b" stroke-width="1" />`);
+      parts.push(`<line x1="${dx2 - 3}" y1="${sy(totalDepth)}" x2="${dx2 + 3}" y2="${sy(totalDepth)}" stroke="#64748b" stroke-width="1" />`);
+      parts.push(`<text x="${dx2 - 4}" y="${midTotalY + 3}" text-anchor="middle" font-size="9" font-weight="700" fill="#334155" transform="rotate(-90 ${dx2 - 4} ${midTotalY})">${Math.round(totalDepth * 1000).toLocaleString('ru-RU')}</text>`);
 
       // Horizontal structural axes (every MODULE = 3.2m)
       const numSteps = Math.round(variant.length / MODULE);
       for (let i = 0; i <= numSteps; i++) {
         const xm = Math.min(variant.length, round2(i * MODULE));
         const px = sx(xm);
-        parts.push(`<line x1="${px}" y1="${PAD_T - 20}" x2="${px}" y2="${sy(TOTAL_DEPTH) + 38}" stroke="#cbd5e1" stroke-width="0.7" stroke-dasharray="6,3,1.5,3" />`);
-        parts.push(`<circle cx="${px}" cy="${sy(TOTAL_DEPTH) + 50}" r="9.5" fill="#ffffff" stroke="#64748b" stroke-width="1" />`);
-        parts.push(`<text x="${px}" y="${sy(TOTAL_DEPTH) + 53.5}" text-anchor="middle" font-size="9.5" font-weight="600" fill="#334155">${i + 1}</text>`);
+        parts.push(`<line x1="${px}" y1="${PAD_T - 20}" x2="${px}" y2="${sy(totalDepth) + 38}" stroke="#cbd5e1" stroke-width="0.7" stroke-dasharray="6,3,1.5,3" />`);
+        parts.push(`<circle cx="${px}" cy="${sy(totalDepth) + 50}" r="9.5" fill="#ffffff" stroke="#64748b" stroke-width="1" />`);
+        parts.push(`<text x="${px}" y="${sy(totalDepth) + 53.5}" text-anchor="middle" font-size="9.5" font-weight="600" fill="#334155">${i + 1}</text>`);
       }
 
       // Total length dimension at bottom
-      const dyBot = sy(TOTAL_DEPTH) + 28;
+      const dyBot = sy(totalDepth) + 28;
       parts.push(`<line x1="${sx(0)}" y1="${dyBot}" x2="${sx(variant.length)}" y2="${dyBot}" stroke="#64748b" stroke-width="1" />`);
       parts.push(`<text x="${sx(variant.length / 2)}" y="${dyBot - 4}" text-anchor="middle" font-size="10" font-weight="700" fill="#334155">${Math.round(variant.length * 1000).toLocaleString('ru-RU')} мм</text>`);
     }
 
     // 2. Outer Building Shell Background
-    parts.push(`<rect x="${sx(0)}" y="${sy(0)}" width="${sw(variant.length)}" height="${sw(TOTAL_DEPTH)}" fill="#ffffff" stroke="#0f172a" stroke-width="2.5" />`);
+    parts.push(`<rect x="${sx(0)}" y="${sy(0)}" width="${sw(variant.length)}" height="${sw(totalDepth)}" fill="#ffffff" stroke="#0f172a" stroke-width="2.5" />`);
 
     // 3. Corridor (МОП)
     const c = variant.corridor;
@@ -1108,16 +1216,17 @@
     }
     // Elevator shaft (crossed box)
     const elX = sx(core.x + core.stairW + 0.25);
-    const elY = sy(core.y + (core.side === 'bottom' ? 2.5 : 0.4));
+    const elHVal = Math.min(2.3, core.h * 0.42);
+    const elY = sy(core.y + (core.side === 'bottom' ? Math.max(1.5, core.h - elHVal - 0.5) : 0.4));
     const elW = sw(core.hallW - 0.5);
-    const elH = sw(2.3);
+    const elH = sw(elHVal);
     parts.push(`<rect x="${elX}" y="${elY}" width="${elW}" height="${elH}" fill="#e2e8f0" stroke="#0f172a" stroke-width="1.6" />`);
     parts.push(`<line x1="${elX}" y1="${elY}" x2="${elX + elW}" y2="${elY + elH}" stroke="#64748b" stroke-width="1" />`);
     parts.push(`<line x1="${elX + elW}" y1="${elY}" x2="${elX}" y2="${elY + elH}" stroke="#64748b" stroke-width="1" />`);
     parts.push(`<text x="${elX + elW / 2}" y="${elY + elH / 2 + 3.5}" text-anchor="middle" font-size="9" font-weight="700" fill="#1e293b">ЛИФТ</text>`);
 
     // MGN safety zone indicator
-    const mgnY = core.side === 'bottom' ? sy(core.y + 1.1) : sy(core.y + 4.3);
+    const mgnY = core.side === 'bottom' ? sy(core.y + 0.7) : sy(core.y + core.h - 1.4);
     parts.push(`<rect x="${elX + 4}" y="${mgnY}" width="${elW - 8}" height="20" rx="3" fill="#fee2e2" stroke="#dc2626" stroke-width="0.9" stroke-dasharray="3,2" />`);
     parts.push(`<text x="${elX + elW / 2}" y="${mgnY + 13}" text-anchor="middle" font-size="8" font-weight="700" fill="#b91c1c">МГН · EI60</text>`);
     parts.push(`</g>`);
@@ -1209,7 +1318,7 @@
       } else {
         // End cap door into corridor
         const dx = apt.side === 'left' ? (ax + aw) : ax;
-        const dy = sy(DEPTH_TOP + 0.5);
+        const dy = sy(depthTop + 0.5);
         parts.push(`<line x1="${dx}" y1="${dy}" x2="${dx}" y2="${dy + doorW}" stroke="#ffffff" stroke-width="3" />`);
       }
 
@@ -1217,7 +1326,7 @@
       if (state.layers.stamps) {
         const stW = 54, stH = 30;
         const stX = ax + aw / 2 - stW / 2;
-        const stY = apt.side === 'top' ? (PAD_T - 42) : (apt.side === 'bottom' ? (sy(TOTAL_DEPTH) + 6) : (PAD_T - 42));
+        const stY = apt.side === 'top' ? (PAD_T - 42) : (apt.side === 'bottom' ? (sy(totalDepth) + 6) : (PAD_T - 42));
         parts.push(`<g>`);
         parts.push(`<rect x="${stX}" y="${stY}" width="${stW}" height="${stH}" rx="2" fill="#ffffff" stroke="${col.stroke}" stroke-width="1.2" />`);
         parts.push(`<line x1="${stX + 20}" y1="${stY}" x2="${stX + 20}" y2="${stY + stH}" stroke="${col.stroke}" stroke-width="0.8" />`);
@@ -1235,7 +1344,7 @@
     // 6. Monolithic RC Pylons (пилоны 200x600 along structural grid)
     if (state.layers.axes) {
       const numSteps = Math.round(variant.length / MODULE);
-      const pylonYs = [0, DEPTH_TOP, DEPTH_TOP + DEPTH_CORR, TOTAL_DEPTH];
+      const pylonYs = [0, depthTop, depthTop + depthCorr, totalDepth];
       for (let i = 0; i <= numSteps; i++) {
         const xm = Math.min(variant.length, round2(i * MODULE));
         pylonYs.forEach(ym => {
@@ -1334,7 +1443,7 @@
     // 4. KPIs
     const m = variant.metrics;
     document.getElementById('kpiFloorArea').textContent = `${fmtNum(m.floorAreaSP)} м²`;
-    document.getElementById('kpiDimensions').textContent = `${fmtNum(variant.length)} × 14,00 м`;
+    document.getElementById('kpiDimensions').textContent = `${fmtNum(variant.length)} × ${fmtNum(variant.depth)} м`;
     document.getElementById('kpiSellableArea').textContent = `${fmtNum(m.sellableCoef)} м²`;
     document.getElementById('kpiLivingArea').textContent = `Жилая: ${fmtNum(m.livingTotal)} м²`;
     document.getElementById('kpiMopArea').textContent = `${fmtNum(m.mopTotal)} м²`;
@@ -1344,7 +1453,7 @@
     document.getElementById('kpiUnitCount').textContent = `${variant.apartments.length} шт.`;
     document.getElementById('kpiUnitBreakdown').textContent = `1К: ${variant.counts['1К']} · 2К: ${variant.counts['2К']} · 3К: ${variant.counts['3К']}`;
 
-    document.getElementById('planTitle').textContent = `${variant.label} — ${variant.strategyName} (${fmtNum(variant.length)} × 14,0 м)`;
+    document.getElementById('planTitle').textContent = `${variant.label} — ${variant.strategyName} (${fmtNum(variant.length)} × ${fmtNum(variant.depth)} м)`;
 
     // 5. Render SVG
     const svgInner = document.getElementById('svgInner');
@@ -1601,6 +1710,13 @@
     document.getElementById('inputLength').value = state.length;
     const steps = round2(state.length / MODULE);
     document.getElementById('valLength').textContent = `${fmtNum(state.length)} м (${steps} шагов)`;
+    document.getElementById('inputDepth').value = state.depth;
+    const dObj = getDepths();
+    document.getElementById('valDepth').textContent = `${fmtNum(dObj.total)} м`;
+    const splitStr = `${fmtNum(dObj.top)} + ${fmtNum(dObj.corr)} + ${fmtNum(dObj.bot)} м`;
+    document.getElementById('valDepthSplit').textContent = splitStr;
+    const hSub = document.getElementById('headerSubtitle');
+    if (hSub) hSub.textContent = `Ширина (глубина) корпуса ${fmtNum(dObj.total)} м (${splitStr}) · Монолитный каркас + газобетон D500`;
     document.getElementById('selectCorePos').value = state.corePos;
     document.getElementById('selectCoreSide').value = state.coreSide;
     document.getElementById('toggleBalconies').checked = state.balconies;
@@ -1622,6 +1738,7 @@
     state.preset = name;
     if (name === 'C1') {
       state.length = 22.4; // Closest modular match to C1 (22.8m)
+      state.depth = 14.0;
       state.corePos = 'center';
       state.coreSide = 'top';
       state.balconies = true;
@@ -1630,6 +1747,7 @@
       state.mix3 = 25;
     } else if (name === 'C5') {
       state.length = 41.6; // Exact match to C5 (41.6m = 13 * 3.2m)
+      state.depth = 14.0;
       state.corePos = 'center';
       state.coreSide = 'bottom';
       state.balconies = false;
@@ -1651,6 +1769,14 @@
     document.getElementById('inputLength').addEventListener('input', (e) => {
       state.preset = 'CUSTOM';
       state.length = parseFloat(e.target.value);
+      syncInputsFromState();
+      generateAllVariants();
+      renderAll();
+    });
+
+    document.getElementById('inputDepth').addEventListener('input', (e) => {
+      state.preset = 'CUSTOM';
+      state.depth = parseFloat(e.target.value);
       syncInputsFromState();
       generateAllVariants();
       renderAll();
@@ -1765,8 +1891,129 @@
     document.getElementById('btnPrint').addEventListener('click', () => window.print());
   }
 
+  function initResizers() {
+    // 1. Vertical resizer: Left Sidebar width
+    const splitterV = document.getElementById('splitterV');
+    const sidebar = document.getElementById('leftSidebar');
+    if (splitterV && sidebar) {
+      let dragging = false;
+      let startX = 0;
+      let startW = 0;
+
+      const onMove = (clientX) => {
+        if (!dragging) return;
+        const nextW = Math.min(520, Math.max(230, startW + (clientX - startX)));
+        sidebar.style.width = `${nextW}px`;
+      };
+
+      const onEnd = () => {
+        if (!dragging) return;
+        dragging = false;
+        splitterV.classList.remove('dragging');
+        document.body.classList.remove('is-resizing');
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', onEnd);
+        window.removeEventListener('touchmove', handleTouchMove);
+        window.removeEventListener('touchend', onEnd);
+      };
+
+      const handleMouseMove = (e) => onMove(e.clientX);
+      const handleTouchMove = (e) => { if (e.touches[0]) onMove(e.touches[0].clientX); };
+
+      splitterV.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        dragging = true;
+        startX = e.clientX;
+        startW = sidebar.getBoundingClientRect().width;
+        splitterV.classList.add('dragging');
+        document.body.classList.add('is-resizing');
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', onEnd);
+      });
+
+      splitterV.addEventListener('touchstart', (e) => {
+        if (!e.touches[0]) return;
+        dragging = true;
+        startX = e.touches[0].clientX;
+        startW = sidebar.getBoundingClientRect().width;
+        splitterV.classList.add('dragging');
+        document.body.classList.add('is-resizing');
+        window.addEventListener('touchmove', handleTouchMove, { passive: true });
+        window.addEventListener('touchend', onEnd);
+      }, { passive: true });
+
+      splitterV.addEventListener('dblclick', () => {
+        sidebar.style.width = '';
+        showToast('Ширина левой панели сброшена');
+      });
+    }
+
+    // 2. Horizontal resizer: Plan Canvas height
+    function bindVerticalResize(handleId, targetIds, minH, maxH, defaultH, resetMsg) {
+      const handle = document.getElementById(handleId);
+      const targets = targetIds.map(id => document.getElementById(id)).filter(Boolean);
+      if (!handle || targets.length === 0) return;
+
+      let dragging = false;
+      let startY = 0;
+      let startH = 0;
+
+      const onMove = (clientY) => {
+        if (!dragging) return;
+        const nextH = Math.min(maxH, Math.max(minH, startH + (clientY - startY)));
+        targets.forEach(t => { t.style.height = `${nextH}px`; });
+      };
+
+      const onEnd = () => {
+        if (!dragging) return;
+        dragging = false;
+        handle.classList.remove('dragging');
+        document.body.classList.remove('is-resizing');
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', onEnd);
+        window.removeEventListener('touchmove', handleTouchMove);
+        window.removeEventListener('touchend', onEnd);
+      };
+
+      const handleMouseMove = (e) => onMove(e.clientY);
+      const handleTouchMove = (e) => { if (e.touches[0]) onMove(e.touches[0].clientY); };
+
+      const startDrag = (clientY) => {
+        dragging = true;
+        startY = clientY;
+        const visibleTarget = targets.find(t => !t.classList.contains('hidden')) || targets[0];
+        startH = visibleTarget.getBoundingClientRect().height;
+        handle.classList.add('dragging');
+        document.body.classList.add('is-resizing');
+      };
+
+      handle.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        startDrag(e.clientY);
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', onEnd);
+      });
+
+      handle.addEventListener('touchstart', (e) => {
+        if (!e.touches[0]) return;
+        startDrag(e.touches[0].clientY);
+        window.addEventListener('touchmove', handleTouchMove, { passive: true });
+        window.addEventListener('touchend', onEnd);
+      }, { passive: true });
+
+      handle.addEventListener('dblclick', () => {
+        targets.forEach(t => { t.style.height = `${defaultH}px`; });
+        showToast(resetMsg);
+      });
+    }
+
+    bindVerticalResize('splitterH', ['svgContainer'], 220, 820, 440, 'Высота области чертежа сброшена');
+    bindVerticalResize('splitterTableH', ['panelExplication', 'panelComparison'], 160, 720, 340, 'Высота таблицы экспликации сброшена');
+  }
+
   // Init
   bindEvents();
+  initResizers();
   applyPreset('C5');
   if (window.lucide && typeof window.lucide.createIcons === 'function') {
     window.lucide.createIcons();
